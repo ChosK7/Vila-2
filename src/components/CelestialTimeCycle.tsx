@@ -23,7 +23,7 @@ export const CelestialTimeCycle: React.FC<CelestialTimeCycleProps> = ({
     <div className="flex items-center gap-1.5 sm:gap-2">
       {/* Celestial Sun/Moon Time Display (Auto-advancing continuous clock) */}
       <div
-        className={`px-3 py-1.5 rounded-xl border-2 border-[#33261D] flex items-center gap-2.5 transition-all shadow-sm select-none ${
+        className={`px-2 sm:px-2.5 py-1 rounded-xl border-2 border-[#33261D] flex items-center gap-1.5 sm:gap-2 transition-all shadow-sm select-none ${
           timeInfo.isDay
             ? 'bg-gradient-to-r from-[#FFFBF0] to-[#FEF3C7] text-[#2C241E]'
             : 'bg-gradient-to-r from-[#0F172A] to-[#1E293B] text-[#93C5FD] border-[#1E293B]'
@@ -33,7 +33,7 @@ export const CelestialTimeCycle: React.FC<CelestialTimeCycleProps> = ({
         {/* Dynamic Celestial Icon (Sun in daytime hours, Moon in nighttime hours) */}
         <div className="relative flex items-center justify-center">
           <span
-            className={`text-xl sm:text-2xl transition-transform duration-500 ${
+            className={`text-lg sm:text-xl transition-transform duration-500 ${
               timeInfo.isDay ? 'hover:scale-110 drop-shadow-xs' : 'hover:scale-110 drop-shadow-md'
             }`}
           >

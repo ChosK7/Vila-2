@@ -35,6 +35,7 @@ import {
   ZoomOut,
   Move,
   Check,
+  ChevronDown,
 } from 'lucide-react';
 import { decimalToTimeString, timeStringToDecimal } from '../game/ScheduleSystem';
 import { chooseVillagerDecision, chooseVillagerActivity, VillagerActivity } from '../game/VillagerAI';
@@ -382,6 +383,10 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
 
   // Follow camera mode
   const [followVillager, setFollowVillager] = useState(false);
+
+  // Camera presets menu state
+  const [isCameraMenuOpen, setIsCameraMenuOpen] = useState(false);
+  const [activeCameraPreset, setActiveCameraPreset] = useState<string>('overview');
 
   // Resource nodes positions dynamically linked to facility positions
   const RESOURCE_NODES = useMemo(() => ({
@@ -1939,6 +1944,16 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     updateCameraPosition();
   };
 
+  const CAMERA_PRESETS = [
+    { id: 'overview', label: 'Visão Geral', shortLabel: 'Geral', icon: '🎯' },
+    { id: 'camp', label: 'Centro & Fogueira', shortLabel: 'Centro', icon: '🛖' },
+    { id: 'fields', label: 'Campos de Trigo', shortLabel: 'Trigo', icon: '🌾' },
+    { id: 'forest', label: 'Floresta de Madeira', shortLabel: 'Floresta', icon: '🪵' },
+    { id: 'quarry', label: 'Pedreira de Rocha', shortLabel: 'Pedreira', icon: '🪨' },
+    { id: 'clay', label: 'Margem de Argila', shortLabel: 'Argila', icon: '🧱' },
+    { id: 'builder', label: 'Canteiro de Obras', shortLabel: 'Obras', icon: '🔨' },
+  ] as const;
+
   const selectedVillager = gameState.villagers.find((v) => v.id === selectedVillagerId);
 
   return (
@@ -1955,105 +1970,96 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       onClick={handleClick}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* 3D View Controls HUD Bar (Positioned below top game header) */}
-      <div className="absolute top-[5.6rem] right-2 sm:right-3 z-10 flex flex-wrap items-center gap-1.5 pointer-events-none">
-        {/* Camera Preset Quick Buttons focused on Work Areas */}
-        <div className="pointer-events-auto bg-[#FDFBF7]/95 backdrop-blur-xs border-2 border-[#33261D] p-1 rounded-xl shadow-md flex items-center gap-1 overflow-x-auto max-w-[85vw] sm:max-w-none">
-          <button
-            onClick={() => resetCamera('overview')}
-            className="px-2 py-1 text-[11px] font-bold rounded-lg hover:bg-[#EFE4CE] text-stone-800 transition-colors whitespace-nowrap"
-            title="Visão Geral da Aldeia"
-          >
-            Geral
-          </button>
-          <button
-            onClick={() => resetCamera('fields')}
-            className="px-2 py-1 text-[11px] font-bold rounded-lg hover:bg-[#EFE4CE] text-stone-800 transition-colors whitespace-nowrap"
-            title="Campos de Trigo (Agricultores)"
-          >
-            🌾 Trigo
-          </button>
-          <button
-            onClick={() => resetCamera('forest')}
-            className="px-2 py-1 text-[11px] font-bold rounded-lg hover:bg-[#EFE4CE] text-stone-800 transition-colors whitespace-nowrap"
-            title="Floresta de Coníferas (Lenhadores)"
-          >
-            🪵 Floresta
-          </button>
-          <button
-            onClick={() => resetCamera('quarry')}
-            className="px-2 py-1 text-[11px] font-bold rounded-lg hover:bg-[#EFE4CE] text-stone-800 transition-colors whitespace-nowrap"
-            title="Pedreira de Rochas (Pedreiros)"
-          >
-            🪨 Pedreira
-          </button>
-          <button
-            onClick={() => resetCamera('clay')}
-            className="px-2 py-1 text-[11px] font-bold rounded-lg hover:bg-[#EFE4CE] text-stone-800 transition-colors whitespace-nowrap"
-            title="Margem Fluvial de Argila (Oleiros)"
-          >
-            🧱 Argila
-          </button>
-          <button
-            onClick={() => resetCamera('builder')}
-            className="px-2 py-1 text-[11px] font-bold rounded-lg hover:bg-[#EFE4CE] text-stone-800 transition-colors whitespace-nowrap"
-            title="Canteiro de Obras (Construtores)"
-          >
-            🔨 Obras
-          </button>
-          <button
-            onClick={() => resetCamera('camp')}
-            className="px-2 py-1 text-[11px] font-bold rounded-lg hover:bg-[#EFE4CE] text-stone-800 transition-colors whitespace-nowrap"
-            title="Centro / Fogueira da Vila"
-          >
-            🛖 Centro
-          </button>
-
-          <div className="h-4 w-px bg-stone-300 mx-1"></div>
-
-          <button
-            onClick={() => setFollowVillager(!followVillager)}
-            disabled={!selectedVillagerId}
-            className={`px-2.5 py-1 text-xs font-bold rounded-lg flex items-center gap-1 transition-colors ${
-              followVillager
-                ? 'bg-[#E5B84B] text-[#2C241E] shadow-xs'
-                : 'text-stone-700 hover:bg-[#EFE4CE] disabled:opacity-40'
-            }`}
-            title="Seguir com a câmera"
-          >
-            <Eye size={13} />
-            <span>Seguir</span>
-          </button>
-        </div>
-
-        {/* Move Facility Mode Toggle Button */}
-        <div className="pointer-events-auto bg-[#FDFBF7]/95 backdrop-blur-xs border-2 border-[#33261D] p-1 rounded-xl shadow-md flex items-center">
+      {/* 3D View Controls Toolbar (Organized and compact, positioned below top header) */}
+      <div className="absolute top-[6.2rem] right-2 sm:right-3.5 z-20 flex items-center gap-1.5 pointer-events-auto">
+        {/* Camera Preset Dropdown Menu */}
+        <div className="relative">
           <button
             onClick={() => {
-              const next = !isMoveMode;
-              setIsMoveMode(next);
-              if (next && !selectedFacilityId) {
-                setSelectedFacilityId('wheat');
-              }
               audio.playWood();
+              setIsCameraMenuOpen(!isCameraMenuOpen);
             }}
-            className={`px-2.5 py-1 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
-              isMoveMode
-                ? 'bg-amber-400 text-stone-950 ring-2 ring-stone-900 shadow-xs font-extrabold'
-                : 'text-stone-700 hover:bg-[#EFE4CE]'
-            }`}
-            title="Reorganizar e mover instalações e edifícios da vila no terreno"
+            className="px-2.5 py-1 text-xs font-bold rounded-xl border-2 border-[#33261D] bg-[#FDFBF7]/95 backdrop-blur-xs hover:bg-[#EFE4CE] text-stone-800 shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
+            title="Selecionar ponto de vista da câmera 3D"
           >
-            <Move size={13} />
-            <span className="hidden sm:inline">{isMoveMode ? 'Mover Ativo' : 'Mover'}</span>
-            <span className="sm:hidden">{isMoveMode ? 'Ativo' : 'Mover'}</span>
+            <span>🎥</span>
+            <span className="text-[11px] font-bold">
+              {CAMERA_PRESETS.find((p) => p.id === activeCameraPreset)?.shortLabel || 'Visão'}
+            </span>
+            <ChevronDown
+              size={12}
+              className={`transition-transform duration-200 ${isCameraMenuOpen ? 'rotate-180' : ''}`}
+            />
           </button>
+
+          {/* Dropdown Menu */}
+          {isCameraMenuOpen && (
+            <div className="absolute top-full right-0 mt-1.5 w-48 bg-[#FDFBF7] border-2 border-[#33261D] rounded-xl p-1 shadow-xl flex flex-col gap-0.5 z-30 animate-in fade-in slide-in-from-top-1">
+              {CAMERA_PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    audio.playWood();
+                    setActiveCameraPreset(p.id);
+                    resetCamera(p.id as any);
+                    setIsCameraMenuOpen(false);
+                  }}
+                  className={`w-full px-2 py-1.5 text-xs font-bold rounded-lg flex items-center gap-2 transition-colors text-left cursor-pointer ${
+                    activeCameraPreset === p.id
+                      ? 'bg-amber-100 text-amber-950 font-black'
+                      : 'text-stone-800 hover:bg-[#EFE4CE]'
+                  }`}
+                >
+                  <span className="text-sm">{p.icon}</span>
+                  <span>{p.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* Follow Villager button */}
+        {selectedVillagerId && (
+          <button
+            onClick={() => setFollowVillager(!followVillager)}
+            className={`px-2.5 py-1 text-xs font-bold rounded-xl border-2 border-[#33261D] flex items-center gap-1 shadow-md transition-all cursor-pointer ${
+              followVillager
+                ? 'bg-[#E5B84B] text-[#2C241E] ring-2 ring-stone-900 font-black'
+                : 'bg-[#FDFBF7]/95 hover:bg-[#EFE4CE] text-stone-700'
+            }`}
+            title="Seguir o aldeão selecionado com a câmera"
+          >
+            <Eye size={13} />
+            <span className="hidden sm:inline">Seguir</span>
+          </button>
+        )}
+
+        {/* Move Facility Mode Toggle Button */}
+        <button
+          onClick={() => {
+            const next = !isMoveMode;
+            setIsMoveMode(next);
+            if (next && !selectedFacilityId) {
+              setSelectedFacilityId('wheat');
+            }
+            audio.playWood();
+          }}
+          className={`px-2.5 py-1 text-xs font-bold rounded-xl border-2 border-[#33261D] flex items-center gap-1.5 shadow-md transition-all cursor-pointer ${
+            isMoveMode
+              ? 'bg-amber-400 text-stone-950 ring-2 ring-stone-900 font-extrabold shadow-sm'
+              : 'bg-[#FDFBF7]/95 hover:bg-[#EFE4CE] text-stone-700'
+          }`}
+          title="Reorganizar instalações e edifícios da vila no terreno"
+        >
+          <Move size={13} />
+          <span className="hidden sm:inline">{isMoveMode ? 'Mover Ativo' : 'Mover'}</span>
+          <span className="sm:hidden">{isMoveMode ? 'Ativo' : 'Mover'}</span>
+        </button>
       </div>
 
       {/* Move Facility Floating Toolbar */}
       {isMoveMode && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 w-[94%] max-w-xl bg-[#FDFBF7]/95 backdrop-blur-md border-3 border-[#33261D] rounded-2xl p-3 shadow-2xl animate-in fade-in slide-in-from-top-3 pointer-events-auto">
+        <div className="absolute top-[6.2rem] left-1/2 -translate-x-1/2 z-20 w-[94%] max-w-xl bg-[#FDFBF7]/95 backdrop-blur-md border-3 border-[#33261D] rounded-2xl p-3 shadow-2xl animate-in fade-in slide-in-from-top-3 pointer-events-auto">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-stone-200 pb-2 mb-2">
             <div className="flex items-center gap-2">
               <span className="text-lg">🏗️</span>
@@ -2129,7 +2135,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
 
       {/* Floating Toast Notification */}
       {moveToast && (
-        <div className="absolute top-36 left-1/2 -translate-x-1/2 z-30 bg-[#2C241E]/95 backdrop-blur-xs text-[#FAF3E7] border border-amber-400/60 px-4 py-2 rounded-xl text-xs font-bold shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-top-2 pointer-events-none">
+        <div className="absolute top-40 left-1/2 -translate-x-1/2 z-30 bg-[#2C241E]/95 backdrop-blur-xs text-[#FAF3E7] border border-amber-400/60 px-4 py-2 rounded-xl text-xs font-bold shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-top-2 pointer-events-none">
           <span>✨</span>
           <span>{moveToast}</span>
         </div>
@@ -2141,7 +2147,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
         const currentActivity = selectedAgent?.currentActivity || (selectedVillager.isWorking ? 'working' : 'idle');
 
         return (
-        <div className="absolute top-16 left-3 sm:left-4 z-10 bg-[#FDFBF7] border-3 border-[#33261D] rounded-2xl p-3 shadow-xl max-w-xs max-h-[calc(100%-4.5rem)] overflow-y-auto animate-in fade-in slide-in-from-top-2 pointer-events-auto">
+        <div className="absolute top-[6.2rem] left-2.5 sm:left-4 z-20 bg-[#FDFBF7] border-3 border-[#33261D] rounded-2xl p-3 shadow-xl max-w-xs max-h-[calc(100%-7.5rem)] overflow-y-auto animate-in fade-in slide-in-from-top-2 pointer-events-auto">
           <div className="flex items-center justify-between gap-3 border-b-2 border-stone-200 pb-2 mb-2">
             <div className="flex items-center gap-2">
               <div

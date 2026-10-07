@@ -55,7 +55,7 @@ export const ExpandableResourceBar: React.FC<ExpandableResourceBarProps> = ({
         }`}
         title="Clique para ver todos os recursos (Argila, Conhecimento, Defesa, Armazenamento)"
       >
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <span className="flex items-center gap-1">
             <span>🌾</span>
             <strong className="font-mono">{Math.floor(resources.food)}</strong>

@@ -489,7 +489,7 @@ export default function App() {
             )}
 
             {/* Celestial Continuous Time Cycle */}
-            <div className="scale-90 sm:scale-100 origin-center">
+            <div className="shrink-0 flex items-center justify-center">
               <CelestialTimeCycle
                 gameState={gameState}
                 onTogglePause={handleTogglePause}
