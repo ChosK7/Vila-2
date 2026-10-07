@@ -578,6 +578,16 @@ export const TaskAssignmentBar: React.FC<TaskAssignmentBarProps> = ({
 
               {dailyMissions.map((mission) => {
                 const isReadyToClaim = mission.completed && !mission.claimed;
+                const missionType = mission.type || (
+                  mission.category === 'build' ? 'building' :
+                  mission.category === 'villagers' ? 'population' : 'resource'
+                );
+                const typeIcon =
+                  missionType === 'resource' ? '📦' :
+                  missionType === 'building' ? '🛖' :
+                  missionType === 'population' ? '👥' :
+                  missionType === 'research' ? '📜' :
+                  missionType === 'survival' ? '🔥' : '⭐';
 
                 return (
                   <div
@@ -591,11 +601,12 @@ export const TaskAssignmentBar: React.FC<TaskAssignmentBarProps> = ({
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h4 className="font-display font-black text-xs text-stone-900 leading-tight flex items-center gap-1">
-                          <span>{mission.title}</span>
+                      <div className="min-w-0">
+                        <h4 className="font-display font-black text-xs text-stone-900 leading-tight flex items-center gap-1.5">
+                          <span className="text-sm shrink-0" title={`Categoria: ${missionType}`}>{typeIcon}</span>
+                          <span className="truncate">{mission.title}</span>
                           {mission.claimed && (
-                            <span className="text-[9px] font-bold bg-stone-200 text-stone-600 px-1 rounded">
+                            <span className="text-[9px] font-bold bg-stone-200 text-stone-600 px-1 rounded shrink-0">
                               ✓ Concluída
                             </span>
                           )}
@@ -610,14 +621,14 @@ export const TaskAssignmentBar: React.FC<TaskAssignmentBarProps> = ({
                             audio.playFanfare();
                             onClaimMissionReward(mission.id);
                           }}
-                          className="px-2.5 py-1 rounded-lg border-2 border-emerald-700 bg-emerald-600 hover:bg-emerald-500 text-white font-display font-black text-xs cursor-pointer shadow-xs animate-pulse"
+                          className="px-2.5 py-1 rounded-lg border-2 border-emerald-700 bg-emerald-600 hover:bg-emerald-500 text-white font-display font-black text-xs cursor-pointer shadow-xs animate-pulse shrink-0"
                         >
                           Coletar!
                         </button>
                       ) : mission.claimed ? (
-                        <span className="text-xs text-emerald-700 font-bold">✓ Coletado</span>
+                        <span className="text-xs text-emerald-700 font-bold shrink-0">✓ Coletado</span>
                       ) : (
-                        <span className="text-[10px] font-mono font-bold text-stone-400">
+                        <span className="text-[10px] font-mono font-bold text-stone-600 bg-stone-100 px-1.5 py-0.5 rounded border border-stone-200 shrink-0">
                           {Math.min(mission.target, Math.floor(mission.progress))}/{mission.target}
                         </span>
                       )}

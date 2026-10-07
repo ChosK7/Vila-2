@@ -34,7 +34,12 @@ import {
 } from './game/BuildingSystem';
 import { advanceSimulationDay } from './game/Simulation';
 import { updateVillagerWorkStatus } from './game/ScheduleSystem';
-import { addVillageXP, getXPRequiredForLevel } from './game/ProgressionSystem';
+import { addVillageXP, getXPRequiredForLevel, MAX_VILLAGE_LEVEL } from './game/ProgressionSystem';
+import {
+  applyMissionReward,
+  updateMissionProgress,
+  generateMissionSet,
+} from './game/MissionSystem';
 import {
   Edit2,
   HelpCircle,
@@ -58,16 +63,31 @@ export default function App() {
         }
 
         // Migração de save antigo para o sistema de progressão da vila
-        const vLevel = typeof parsed.villageLevel === 'number' && parsed.villageLevel >= 1
-          ? parsed.villageLevel
-          : 1;
+        const vLevel =
+          typeof parsed.villageLevel === 'number'
+            ? Math.max(1, Math.min(MAX_VILLAGE_LEVEL, parsed.villageLevel))
+            : 1;
+
         parsed.villageLevel = vLevel;
-        parsed.villageXP = typeof parsed.villageXP === 'number' && parsed.villageXP >= 0
-          ? parsed.villageXP
-          : 0;
-        parsed.xpToNextLevel = typeof parsed.xpToNextLevel === 'number' && parsed.xpToNextLevel > 0
-          ? parsed.xpToNextLevel
-          : getXPRequiredForLevel(vLevel);
+
+        parsed.villageXP =
+          typeof parsed.villageXP === 'number'
+            ? Math.max(0, parsed.villageXP)
+            : 0;
+
+        parsed.xpToNextLevel = getXPRequiredForLevel(vLevel);
+
+        if (vLevel >= MAX_VILLAGE_LEVEL) {
+          parsed.villageXP = 0;
+          parsed.xpToNextLevel = 0;
+        }
+
+        // Migração e atualização segura das missões
+        if (Array.isArray(parsed.dailyMissions) && parsed.dailyMissions.length > 0) {
+          parsed.dailyMissions = updateMissionProgress(parsed.dailyMissions, parsed);
+        } else {
+          parsed.dailyMissions = generateMissionSet(parsed, 3);
+        }
 
         return parsed;
       }
@@ -263,59 +283,14 @@ export default function App() {
     });
   };
 
-  // Claim Daily Mission Reward
+  // Claim Daily Mission Reward via MissionSystem
   const handleClaimMissionReward = (missionId: string) => {
     setGameState((prev) => {
       const mission = prev.dailyMissions?.find((m) => m.id === missionId);
       if (!mission || mission.claimed) return prev;
 
       audio.playFanfare();
-
-      // Cálculo centralizado de progressão via ProgressionSystem
-      const xpResult = addVillageXP(prev.villageLevel || 1, prev.villageXP || 0, mission.rewardXP);
-      const newLevel = xpResult.level;
-      const newXP = xpResult.xp;
-      const nextXP = xpResult.xpToNextLevel;
-
-      let newUnlockedJobs = [...(prev.unlockedJobs || ['farmer', 'lumberjack', 'quarryman'])];
-
-      // Desbloqueio progressivo de trabalhos conforme o nível da vila
-      if (newLevel >= 2 && !newUnlockedJobs.includes('potter')) {
-        newUnlockedJobs.push('potter');
-      }
-      if (newLevel >= 2 && !newUnlockedJobs.includes('elder')) {
-        newUnlockedJobs.push('elder');
-      }
-      if (newLevel >= 3 && !newUnlockedJobs.includes('guard')) {
-        newUnlockedJobs.push('guard');
-      }
-
-      if (mission.unlockJob && !newUnlockedJobs.includes(mission.unlockJob)) {
-        newUnlockedJobs.push(mission.unlockJob);
-      }
-
-      // Mark claimed and keep mission state updated
-      const updatedMissions = prev.dailyMissions.map((m) => {
-        if (m.id === missionId) {
-          return { ...m, claimed: true };
-        }
-        return m;
-      });
-
-      const lastLevelUp = xpResult.levelsGained > 0
-        ? { oldLevel: prev.villageLevel || 1, newLevel }
-        : prev.lastLevelUp;
-
-      return {
-        ...prev,
-        villageXP: newXP,
-        villageLevel: newLevel,
-        xpToNextLevel: nextXP,
-        lastLevelUp,
-        unlockedJobs: newUnlockedJobs,
-        resources: addKnowledgeReward(prev.resources, mission.rewardKnowledge || 0),
-        dailyMissions: updatedMissions,
-      };
+      return applyMissionReward(prev, mission);
     });
   };
 

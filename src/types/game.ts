@@ -40,11 +40,36 @@ export interface Villager {
   };
 }
 
+export type MissionType =
+  | 'resource'
+  | 'building'
+  | 'population'
+  | 'research'
+  | 'survival'
+  | 'progression';
+
+export type MissionMetric =
+  | 'food'
+  | 'wood'
+  | 'stone'
+  | 'clay'
+  | 'knowledge'
+  | 'building_count'
+  | 'population'
+  | 'technology_count'
+  | 'days_survived'
+  | 'village_level';
+
 export interface DailyMission {
   id: string;
   title: string;
   description: string;
   category: 'food' | 'wood' | 'stone' | 'knowledge' | 'build' | 'villagers';
+  type?: MissionType;
+  metric?: MissionMetric;
+  levelMin?: number;
+  levelMax?: number;
+  repeatable?: boolean;
   target: number;
   progress: number;
   rewardText: string;

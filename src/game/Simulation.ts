@@ -5,6 +5,7 @@ import { autoAssignIdleVillagers } from './JobSystem';
 import { advanceBuildingsConstruction, calculateStorageCaps } from './BuildingSystem';
 import { DAYS_PER_SEASON } from './GameClock';
 import { updateVillagerWorkStatus } from './ScheduleSystem';
+import { updateMissionProgress, generateMissionSet } from './MissionSystem';
 
 export interface AdvanceDayResult {
   nextState: GameState;
@@ -14,27 +15,19 @@ export interface AdvanceDayResult {
 
 /**
  * Atualiza o progresso das missões diárias com base no novo saldo de recursos e população.
+ * Mantido como adaptador retrocompatível que delega para o MissionSystem.
  */
 export function updateDailyMissionsProgress(
   missions: DailyMission[],
   resources: Resources,
   villagersCount: number
 ): DailyMission[] {
-  return (missions || []).map((m) => {
-    if (m.claimed) return m;
-    let curProgress = m.progress;
-    if (m.category === 'food') curProgress = Math.max(curProgress, resources.food);
-    if (m.category === 'wood') curProgress = Math.max(curProgress, resources.wood);
-    if (m.category === 'stone') curProgress = Math.max(curProgress, resources.stone);
-    if (m.category === 'knowledge') curProgress = Math.max(curProgress, resources.knowledge);
-    if (m.category === 'villagers') curProgress = Math.max(curProgress, villagersCount);
-
-    return {
-      ...m,
-      progress: curProgress,
-      completed: curProgress >= m.target,
-    };
-  });
+  // Cria um estado mínimo para delegar ao MissionSystem
+  const dummyState = {
+    resources,
+    villagers: Array(villagersCount).fill(null),
+  } as unknown as GameState;
+  return updateMissionProgress(missions, dummyState);
 }
 
 /**
@@ -82,11 +75,17 @@ export function advanceSimulationDay(
   );
 
   // 3. Atualiza progresso das missões diárias
-  const updatedMissions = updateDailyMissionsProgress(
-    prevState.dailyMissions,
-    newResources,
-    prevState.villagers.length
-  );
+  const simulatedState: GameState = {
+    ...prevState,
+    resources: newResources,
+    buildings: updatedBuildings,
+  };
+  let updatedMissions = updateMissionProgress(prevState.dailyMissions, simulatedState);
+
+  // Se todas as missões foram reivindicadas, gera novo conjunto
+  if (updatedMissions.length === 0 || updatedMissions.every((m) => m.claimed)) {
+    updatedMissions = generateMissionSet(simulatedState, 3);
+  }
 
   // 4. JobSystem: Distribui aldeões ociosos se auto-assign estiver ativado
   let updatedVillagers = [...prevState.villagers];
