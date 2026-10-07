@@ -531,16 +531,21 @@ export function updateMissionProgress(
  * Calcula uma pontuação pseudo-aleatória porém determinística para ordenação de templates.
  * Garante estabilidade de interface, ausência de flicker e total reprodutibilidade.
  */
-export function deterministicScore(
+function deterministicScore(
   templateId: string,
   turn: number,
   villageLevel: number
 ): number {
-  let score = turn * 31 + villageLevel * 17;
-  for (let i = 0; i < templateId.length; i++) {
-    score += templateId.charCodeAt(i) * (i + 1);
+  let hash = 2166136261;
+
+  const seed = `${templateId}:${turn}:${villageLevel}`;
+
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
   }
-  return score;
+
+  return hash >>> 0;
 }
 
 /**
