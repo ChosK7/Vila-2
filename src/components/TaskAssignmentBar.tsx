@@ -16,8 +16,14 @@ import {
   Award,
   Flame,
   Wheat,
+  Hammer,
+  BookOpen,
+  X,
 } from 'lucide-react';
 import { audio } from '../utils/audio';
+import { calculateHousingCapacity } from '../game/BuildingSystem';
+import { BuildingPanel } from './BuildingPanel';
+import { TechTreePanel } from './TechTreePanel';
 
 interface TaskAssignmentBarProps {
   gameState: GameState;
@@ -30,6 +36,9 @@ interface TaskAssignmentBarProps {
   onRecruitVillager: () => void;
   onUnlockJob: (job: JobType) => void;
   onClaimMissionReward: (missionId: string) => void;
+  onStartConstruction: (buildingId: string) => void;
+  onUpgradeBuilding: (buildingId: string) => void;
+  onResearchTech: (techId: string) => void;
   rates: {
     foodNet: number;
     foodProduced: number;
@@ -64,6 +73,9 @@ export const TaskAssignmentBar: React.FC<TaskAssignmentBarProps> = ({
   onRecruitVillager,
   onUnlockJob,
   onClaimMissionReward,
+  onStartConstruction,
+  onUpgradeBuilding,
+  onResearchTech,
   rates,
 }) => {
   const {
@@ -79,7 +91,10 @@ export const TaskAssignmentBar: React.FC<TaskAssignmentBarProps> = ({
     woodConsumedPerTurn = 1,
   } = gameState;
 
-  // Active view inside the 60% window: 'tasks' | 'missions'
+  // Main active tab: 'tasks' (Designar Tarefas) | 'buildings' (Construir) | 'tech' (Pesquisas)
+  const [mainTab, setMainTab] = useState<'tasks' | 'buildings' | 'tech'>('tasks');
+
+  // Sub-tab inside tasks: 'tasks' | 'missions'
   const [activeTab, setActiveTab] = useState<'tasks' | 'missions'>('tasks');
 
   // Counts per job
@@ -101,11 +116,8 @@ export const TaskAssignmentBar: React.FC<TaskAssignmentBarProps> = ({
   const idleCount = jobCounts.idle;
   const assignedCount = villagers.length - idleCount;
 
-  // Housing cap
-  const housingCap = Object.values(buildings).reduce(
-    (acc, b) => acc + (b.housingCap || 0) * b.count,
-    0
-  );
+  // Housing cap: 2 base por cabana + 2 por novo nível
+  const housingCap = calculateHousingCapacity(buildings);
   const canRecruit = resources.food >= 15 && villagers.length < housingCap;
 
   // Average Villager Health & Hunger
@@ -207,84 +219,146 @@ export const TaskAssignmentBar: React.FC<TaskAssignmentBarProps> = ({
 
   return (
     <div className="pointer-events-auto">
-      {/* Floating Toggle Dock Button */}
-      <div className="flex items-center justify-center">
+      {/* Floating Shortcut Icon Button ("apenas o ícone de atalho") */}
+      <div className="flex items-center justify-end">
         <button
           onClick={() => {
             audio.playWood();
             onToggle();
           }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-[#33261D] font-display font-black text-xs transition-all shadow-lg cursor-pointer ${
-            isOpen ? 'bg-[#33261D] text-[#FFFBF5]' : 'bg-[#FFFDF9]/95 text-stone-900 hover:bg-[#F5EAD9]'
+          className={`relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl border-3 border-[#33261D] shadow-xl transition-all cursor-pointer flex items-center justify-center group ${
+            isOpen
+              ? 'bg-[#33261D] text-[#FFFBF5] scale-95 ring-2 ring-amber-400'
+              : 'bg-[#FFFDF9]/95 text-stone-900 hover:bg-[#F5EAD9] hover:scale-105 active:scale-95'
           }`}
-          title="Abrir painel menor de tarefas e missões (60% da tela)"
+          title="Atalho: Designar Tarefas, Obras e Pesquisas da Vila"
+          aria-label="Atalho de Designar Tarefas"
         >
-          <span className="text-base">📋</span>
-          <span>Designar Tarefas</span>
-          <span className="bg-[#E5B84B] text-[#2C241E] px-1.5 py-0.5 rounded-md text-[10px] font-mono font-black">
-            {assignedCount}/{villagers.length}
-          </span>
-          {idleCount > 0 && (
-            <span className="bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded-md text-[10px] font-bold animate-pulse">
-              💤 {idleCount} Livre{idleCount > 1 ? 's' : ''}
+          <span className="text-2xl group-hover:scale-110 transition-transform">📋</span>
+          {/* Notification badge */}
+          {(idleCount > 0 || pendingMissionsCount > 0) && (
+            <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-5 h-5 px-1 rounded-full text-[10px] font-black font-mono border-2 border-[#33261D] bg-amber-400 text-stone-950 shadow-sm animate-pulse">
+              {idleCount > 0 ? `${idleCount}💤` : `🎯`}
             </span>
           )}
-          {pendingMissionsCount > 0 && (
-            <span className="bg-emerald-500 text-white px-1.5 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-0.5">
-              🎯 {pendingMissionsCount}
-            </span>
-          )}
-          {isOpen ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
         </button>
       </div>
 
-      {/* Expanded Task & Mission Window: EXACTLY "uma janela rolavel com 60% da tela total" */}
+      {/* Expanded Village Hub Window (Tarefas, Construir, Pesquisa) */}
       {isOpen && (
-        <div className="mt-2 bg-[#FDFBF7]/95 backdrop-blur-md border-3 border-[#33261D] rounded-2xl p-3 sm:p-4 shadow-2xl max-w-2xl w-[94vw] sm:w-[580px] mx-auto max-h-[60vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-2">
-          {/* Top Window Header: Tabs & Leveling */}
+        <div className="mt-2 bg-[#FDFBF7]/95 backdrop-blur-md border-3 border-[#33261D] rounded-2xl p-3 sm:p-4 shadow-2xl max-w-2xl w-[94vw] sm:w-[580px] mx-auto max-h-[68vh] overflow-y-auto animate-in fade-in slide-in-from-bottom-2">
+          {/* Top Window Header: 3 Main Tabs & Close */}
           <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b-2 border-stone-200 sticky top-0 bg-[#FDFBF7]/95 backdrop-blur-xs z-10 pt-1">
-            {/* Tabs */}
+            {/* Main Tabs: Tarefas, Construir, Pesquisa */}
             <div className="flex items-center gap-1 bg-[#EFE4CE] p-1 rounded-xl border border-stone-300">
               <button
-                onClick={() => setActiveTab('tasks')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === 'tasks'
+                onClick={() => {
+                  audio.playWood();
+                  setMainTab('tasks');
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  mainTab === 'tasks'
                     ? 'bg-[#33261D] text-white shadow-xs'
                     : 'text-stone-700 hover:text-stone-900'
                 }`}
               >
-                📋 Tarefas ({unlockedJobs.length}/{tasks.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('missions')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                  activeTab === 'missions'
-                    ? 'bg-[#33261D] text-white shadow-xs'
-                    : 'text-stone-700 hover:text-stone-900'
-                }`}
-              >
-                <Target size={13} />
-                <span>Missões Diárias</span>
-                {pendingMissionsCount > 0 && (
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>📋</span>
+                <span>Tarefas</span>
+                {idleCount > 0 && (
+                  <span className="bg-amber-400 text-stone-950 px-1 rounded text-[9px] font-black">
+                    {idleCount}
+                  </span>
                 )}
+              </button>
+
+              <button
+                onClick={() => {
+                  audio.playWood();
+                  setMainTab('buildings');
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  mainTab === 'buildings'
+                    ? 'bg-[#33261D] text-white shadow-xs'
+                    : 'text-stone-700 hover:text-stone-900'
+                }`}
+              >
+                <Hammer size={12} />
+                <span>Construir</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  audio.playWood();
+                  setMainTab('tech');
+                }}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  mainTab === 'tech'
+                    ? 'bg-[#33261D] text-white shadow-xs'
+                    : 'text-stone-700 hover:text-stone-900'
+                }`}
+              >
+                <BookOpen size={12} />
+                <span>Pesquisas</span>
               </button>
             </div>
 
-            {/* Village Level & XP Badge */}
-            <div className="flex items-center gap-1.5 bg-[#FAF3E7] px-2.5 py-1 rounded-xl border border-amber-300 text-xs">
-              <span className="text-amber-800 font-bold">Nível {villageLevel}</span>
-              <div className="w-16 h-2 bg-stone-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-amber-500 transition-all duration-300"
-                  style={{ width: `${Math.min(100, (villageXP / xpToNextLevel) * 100)}%` }}
-                ></div>
+            {/* Village Level & Close button */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-[#FAF3E7] px-2 py-0.5 rounded-lg border border-amber-300 text-[11px]">
+                <span className="text-amber-800 font-bold">Nível {villageLevel}</span>
+                <div className="w-12 h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-amber-500 transition-all duration-300"
+                    style={{ width: `${Math.min(100, (villageXP / xpToNextLevel) * 100)}%` }}
+                  ></div>
+                </div>
               </div>
-              <span className="text-[10px] font-mono text-stone-500 font-bold">
-                {villageXP}/{xpToNextLevel} XP
-              </span>
+
+              <button
+                onClick={() => {
+                  audio.playWood();
+                  onToggle();
+                }}
+                className="p-1 rounded-lg border border-[#33261D]/40 bg-[#FFFDF9] hover:bg-stone-200 text-stone-700 transition-colors cursor-pointer"
+                title="Fechar janela"
+              >
+                <X size={15} />
+              </button>
             </div>
           </div>
+
+          {/* TAB 1: DESIGNAR TAREFAS */}
+          {mainTab === 'tasks' && (
+            <div>
+              {/* Sub-tabs for Tasks / Missions */}
+              <div className="flex items-center justify-between gap-2 mt-2 pb-2 border-b border-stone-200">
+                <div className="flex items-center gap-1 bg-[#FAF3E7] p-0.5 rounded-lg border border-stone-300">
+                  <button
+                    onClick={() => setActiveTab('tasks')}
+                    className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                      activeTab === 'tasks'
+                        ? 'bg-[#33261D] text-white shadow-xs'
+                        : 'text-stone-700 hover:text-stone-900'
+                    }`}
+                  >
+                    📋 Coleta & Trabalhos ({unlockedJobs.length}/{tasks.length})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('missions')}
+                    className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                      activeTab === 'missions'
+                        ? 'bg-[#33261D] text-white shadow-xs'
+                        : 'text-stone-700 hover:text-stone-900'
+                    }`}
+                  >
+                    <Target size={11} />
+                    <span>Missões Diárias</span>
+                    {pendingMissionsCount > 0 && (
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    )}
+                  </button>
+                </div>
+              </div>
 
           {/* VITALITY, ALIMENTATION & RESOURCE CONSUMPTION SUMMARY */}
           <div className="my-2.5 p-2 rounded-xl bg-[#FFFBF5] border-2 border-[#33261D]/30 flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -549,17 +623,40 @@ export const TaskAssignmentBar: React.FC<TaskAssignmentBarProps> = ({
               })}
             </div>
           )}
+            </div>
+          )}
+
+          {/* TAB 2: CONSTRUIR (Obras & Edifícios) */}
+          {mainTab === 'buildings' && (
+            <div className="mt-2">
+              <BuildingPanel
+                gameState={gameState}
+                onStartConstruction={onStartConstruction}
+                onUpgradeBuilding={onUpgradeBuilding}
+              />
+            </div>
+          )}
+
+          {/* TAB 3: PESQUISAS (Árvore de Tecnologia) */}
+          {mainTab === 'tech' && (
+            <div className="mt-2">
+              <TechTreePanel
+                gameState={gameState}
+                onResearchTech={onResearchTech}
+              />
+            </div>
+          )}
 
           {/* Footer note */}
           <div className="mt-3 pt-2 border-t border-stone-200 flex items-center justify-between text-[11px] text-stone-500">
             <span>
-              💡 Janela de 60% da tela · Arraste a barra para rolar
+              💡 Gestão Central da Vila: Tarefas, Obras e Pesquisas
             </span>
             <button
               onClick={onToggle}
               className="font-bold text-stone-700 hover:text-stone-900 underline cursor-pointer"
             >
-              Recolher ▲
+              Fechar ▲
             </button>
           </div>
         </div>

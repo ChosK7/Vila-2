@@ -59,7 +59,7 @@ export function createCampfireMesh(): THREE.Group {
   return group;
 }
 
-export function createHutMesh(): THREE.Group {
+export function createHutMesh(level: number = 1): THREE.Group {
   const group = new THREE.Group();
   group.name = 'hut';
 
@@ -84,6 +84,43 @@ export function createHutMesh(): THREE.Group {
   const door = new THREE.Mesh(doorGeo, doorMat);
   door.position.set(0, 0.45, 1.2);
   group.add(door);
+
+  // Detalhes visuais de Nível 2+ (Estrutura reforçada de vigas e toldo frontal)
+  if (level >= 2) {
+    const postGeo = new THREE.CylinderGeometry(0.06, 0.07, 1.35, 6);
+    const postMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.85 });
+    [-1.25, 1.25].forEach((px) => {
+      [-1.25, 1.25].forEach((pz) => {
+        const post = new THREE.Mesh(postGeo, postMat);
+        post.position.set(px, 0.68, pz);
+        post.castShadow = true;
+        group.add(post);
+      });
+    });
+
+    const awningGeo = new THREE.BoxGeometry(0.85, 0.07, 0.55);
+    const awning = new THREE.Mesh(awningGeo, thatchMat);
+    awning.position.set(0, 0.95, 1.35);
+    awning.rotation.x = 0.22;
+    awning.castShadow = true;
+    group.add(awning);
+  }
+
+  // Detalhes visuais de Nível 3+ (Finial totem no ápice e tocha lateral)
+  if (level >= 3) {
+    const finialGeo = new THREE.CylinderGeometry(0.05, 0.08, 0.65, 6);
+    const finialMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.7 });
+    const finial = new THREE.Mesh(finialGeo, finialMat);
+    finial.position.set(0, 2.75, 0);
+    finial.castShadow = true;
+    group.add(finial);
+
+    const torchGeo = new THREE.BoxGeometry(0.15, 0.22, 0.15);
+    const torchMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+    const torch = new THREE.Mesh(torchGeo, torchMat);
+    torch.position.set(0.45, 0.85, 1.35);
+    group.add(torch);
+  }
 
   return group;
 }

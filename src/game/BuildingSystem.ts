@@ -15,12 +15,78 @@ export function calculateStorageCaps(buildings: Record<string, Building>): GameS
 
 /**
  * Calcula o limite populacional/habitacional com base nos edifícios da aldeia.
+ * Regra: 2 por cabana no nível 1, +2 a cada novo nível da cabana.
  */
 export function calculateHousingCapacity(buildings: Record<string, Building>): number {
-  return Object.values(buildings).reduce(
-    (acc, b) => acc + (b.housingCap || 0) * b.count,
-    0
-  );
+  return Object.values(buildings).reduce((acc, b) => {
+    if (b.category !== 'housing' || b.count <= 0) return acc;
+    if (b.id === 'hut') {
+      const hutLevel = Math.max(1, b.level || 1);
+      const capPerHut = 2 + (hutLevel - 1) * 2; // = hutLevel * 2
+      return acc + capPerHut * b.count;
+    }
+    return acc + (b.housingCap || 0) * b.count;
+  }, 0);
+}
+
+/**
+ * Retorna o custo de evolução de nível de uma construção (ex: cabana).
+ */
+export function getBuildingUpgradeCost(building: Building): Partial<Resources> {
+  const currentLevel = Math.max(1, building.level || 1);
+  const nextLevel = currentLevel + 1;
+  if (building.id === 'hut') {
+    return {
+      wood: 25 * currentLevel,
+      stone: 15 * (nextLevel - 1),
+    };
+  }
+  return {
+    wood: Math.round((building.cost.wood || 20) * 1.4),
+    stone: Math.round((building.cost.stone || 10) * 1.4),
+  };
+}
+
+/**
+ * Evolui imediatamente o nível da construção (ex: Cabana nível +1, +2 vagas por cabana).
+ */
+export function upgradeBuildingLevel(
+  buildings: Record<string, Building>,
+  resources: Resources,
+  buildingId: string
+): {
+  success: boolean;
+  updatedBuildings: Record<string, Building>;
+  updatedResources: Resources;
+} {
+  const building = buildings[buildingId];
+  if (!building) {
+    return { success: false, updatedBuildings: buildings, updatedResources: resources };
+  }
+  const cost = getBuildingUpgradeCost(building);
+  if (!canAffordBuilding(resources, cost)) {
+    return { success: false, updatedBuildings: buildings, updatedResources: resources };
+  }
+
+  const updatedResources = deductBuildingCost(resources, cost);
+  const newLevel = Math.max(1, building.level || 1) + 1;
+  const newCapPerHut = 2 + (newLevel - 1) * 2;
+
+  const updatedBuildings = {
+    ...buildings,
+    [buildingId]: {
+      ...building,
+      level: newLevel,
+      housingCap: newCapPerHut,
+      benefitsDescription: `${newCapPerHut} vagas (${newCapPerHut} por cabana)`,
+    },
+  };
+
+  return {
+    success: true,
+    updatedBuildings,
+    updatedResources,
+  };
 }
 
 /**

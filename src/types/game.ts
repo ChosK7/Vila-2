@@ -66,6 +66,7 @@ export interface Building {
   requiredTech?: string;
   count: number;
   maxCount?: number;
+  level?: number;
   housingCap?: number;
   benefitsDescription: string;
   icon: string;

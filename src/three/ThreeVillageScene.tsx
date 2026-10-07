@@ -37,6 +37,7 @@ import {
   Check,
 } from 'lucide-react';
 import { decimalToTimeString, timeStringToDecimal } from '../game/ScheduleSystem';
+import { chooseVillagerDecision, chooseVillagerActivity, VillagerActivity } from '../game/VillagerAI';
 
 interface ThreeVillageSceneProps {
   gameState: GameState;
@@ -151,7 +152,14 @@ interface VillagerAgent {
     | 'carrying_to_storage'
     | 'idle'
     | 'eating_meal'
-    | 'sleeping';
+    | 'sleeping'
+    | 'socializing'
+    | 'wandering'
+    | 'resting';
+  currentActivity: VillagerActivity;
+  activityTimer: number;
+  activityDuration: number;
+  socialPartnerId?: string;
   workTimer: number;
   speed: number;
   idleAction: IdleActionType;
@@ -174,9 +182,10 @@ export const DEFAULT_FACILITY_CONFIGS: Record<
   buildersite: { name: 'Canteiro de Obras (Construtor)', icon: '🔨', defaultX: 3.0, defaultZ: 0, description: 'Andaimagens e obras ativas erguidas pelos construtores.' },
   elderDesk: { name: 'Mesa de Estudos (Ancião)', icon: '📜', defaultX: -2.2, defaultZ: -2.8, description: 'Altar de pergaminhos e registros do ancião da aldeia.' },
   guardPost: { name: 'Posto de Sentinela (Guarda)', icon: '🛡️', defaultX: 5.5, defaultZ: 5.0, description: 'Guarita de vigia e patrulha armada dos guardas.' },
-  shelter_1: { name: 'Moradia Inicial', icon: '🛖', defaultX: -2.8, defaultZ: -1.8, description: 'Primeira cabana ou casa de pedra dos aldeões pioneiros.' },
-  shelter_2: { name: 'Segunda Moradia', icon: '🛖', defaultX: -2.8, defaultZ: 1.8, description: 'Habitação para a expansão populacional.' },
-  shelter_3: { name: 'Terceira Moradia', icon: '🛖', defaultX: 2.8, defaultZ: -2.0, description: 'Alojamento comunitário adicional.' },
+  shelter_1: { name: 'Cabana 1 (Principal)', icon: '🛖', defaultX: -2.8, defaultZ: -1.8, description: 'Primeira moradia da aldeia (2 vagas base, +2 por nível).' },
+  shelter_2: { name: 'Cabana 2', icon: '🛖', defaultX: -2.8, defaultZ: 1.8, description: 'Segunda moradia da aldeia (2 vagas base, +2 por nível).' },
+  shelter_3: { name: 'Cabana 3', icon: '🛖', defaultX: 2.8, defaultZ: -2.0, description: 'Terceira moradia da aldeia (2 vagas base, +2 por nível).' },
+  shelter_4: { name: 'Cabana 4', icon: '🛖', defaultX: 2.8, defaultZ: 2.0, description: 'Quarta moradia da aldeia (2 vagas base, +2 por nível).' },
   granary: { name: 'Celeiro de Grãos', icon: '🌾', defaultX: 0, defaultZ: 4.0, description: 'Estrutura elevada sobre estacas para estocagem de comida.' },
   village_well: { name: 'Poço Comunitário', icon: '💧', defaultX: 0, defaultZ: -3.8, description: 'Poço de pedra que fornece água potável e irriga os campos.' },
   longhouse: { name: 'Casa Comunitária Longa', icon: '🏛️', defaultX: 0, defaultZ: -1.0, description: 'Grande salão comunal da Idade do Bronze.' },
@@ -242,12 +251,15 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     const huts = buildings.hut?.count || 1;
     const stone = buildings.stone_dwelling?.count || 0;
 
-    list.push({ id: 'shelter_1', name: 'Moradia 1', icon: '🛖', description: 'Primeira moradia dos aldeões' });
+    list.push({ id: 'shelter_1', name: 'Cabana 1', icon: '🛖', description: 'Primeira moradia da aldeia' });
     if (huts > 1 || stone > 1) {
-      list.push({ id: 'shelter_2', name: 'Moradia 2', icon: '🛖', description: 'Segunda habitação' });
+      list.push({ id: 'shelter_2', name: 'Cabana 2', icon: '🛖', description: 'Segunda moradia' });
     }
-    if (stone > 2) {
-      list.push({ id: 'shelter_3', name: 'Moradia 3', icon: '🛖', description: 'Terceira moradia de pedra' });
+    if (huts > 2 || stone > 2) {
+      list.push({ id: 'shelter_3', name: 'Cabana 3', icon: '🛖', description: 'Terceira moradia' });
+    }
+    if (huts > 3) {
+      list.push({ id: 'shelter_4', name: 'Cabana 4', icon: '🛖', description: 'Quarta moradia' });
     }
     if ((buildings.granary?.count || 0) > 0) {
       list.push({ id: 'granary', name: 'Celeiro', icon: '🌾', description: 'Celeiro de estocagem de grãos' });
@@ -891,7 +903,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     }
 
     // Clear building keys from facilityGroupsRef
-    ['shelter_1', 'shelter_2', 'shelter_3', 'granary', 'village_well', 'longhouse', 'ziggurat'].forEach((id) => {
+    ['shelter_1', 'shelter_2', 'shelter_3', 'shelter_4', 'granary', 'village_well', 'longhouse', 'ziggurat'].forEach((id) => {
       facilityGroupsRef.current.delete(id);
     });
 
@@ -906,25 +918,29 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       facilityGroupsRef.current.set(id, mesh);
     };
 
-    // Starter or built huts
-    const hutsCount = buildings.hut?.count || 1;
+    // Starter or built huts with visual level
+    const hutsCount = Math.max(1, buildings.hut?.count || 1);
+    const hutLevel = Math.max(1, buildings.hut?.level || 1);
     const stoneDwellingsCount = buildings.stone_dwelling?.count || 0;
 
-    // Main starter shelter
+    // Main starter shelter (Cabana 1)
     if (stoneDwellingsCount > 0) {
       registerBuilding('shelter_1', createStoneDwellingMesh(), { x: -2.8, z: -1.8 });
     } else {
-      registerBuilding('shelter_1', createHutMesh(), { x: -2.8, z: -1.8 });
+      registerBuilding('shelter_1', createHutMesh(hutLevel), { x: -2.8, z: -1.8 });
     }
 
-    // Additional houses
+    // Additional houses (Cabanas 2, 3, 4)
     if (hutsCount > 1 || stoneDwellingsCount > 1) {
-      const hut2 = stoneDwellingsCount > 1 ? createStoneDwellingMesh() : createHutMesh();
+      const hut2 = stoneDwellingsCount > 1 ? createStoneDwellingMesh() : createHutMesh(hutLevel);
       registerBuilding('shelter_2', hut2, { x: -2.8, z: 1.8 });
     }
-    if (stoneDwellingsCount > 2) {
-      const hut3 = createStoneDwellingMesh();
+    if (hutsCount > 2 || stoneDwellingsCount > 2) {
+      const hut3 = stoneDwellingsCount > 2 ? createStoneDwellingMesh() : createHutMesh(hutLevel);
       registerBuilding('shelter_3', hut3, { x: 2.8, z: -2.0 });
+    }
+    if (hutsCount > 3) {
+      registerBuilding('shelter_4', createHutMesh(hutLevel), { x: 2.8, z: 2.0 });
     }
 
     // Granary
@@ -985,6 +1001,9 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
           pos: initialPos,
           target: initialPos.clone(),
           state: 'idle',
+          currentActivity: 'idle',
+          activityTimer: 0,
+          activityDuration: 6.0,
           workTimer: 0,
           speed: 1.8,
           idleAction: (index % 2 === 0 ? 'sway' : 'look_around') as IdleActionType,
@@ -1029,129 +1048,173 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     job: JobType,
     forceWork: boolean = false
   ) => {
-    const routine = getCelestialTimeInfo(gameState.gameHour ?? 6.0).routine;
-    const isWorking = agent.villager.isWorking ?? false;
+    // Tomada de decisão centralizada na IA Autônoma (VillagerAI.ts)
+    const decision = chooseVillagerDecision(
+      agent.villager,
+      gameState.gameHour ?? 6.0,
+      gameState.villagers
+    );
 
-    // 1. REFEIÇÕES / DESCANSO: Somente se não for atribuição manual direta ou início de turno
-    if (!forceWork) {
-      if (routine === 'breakfast' || routine === 'lunch' || routine === 'dinner') {
-        const agentKeys = Array.from(agentsRef.current.keys());
-        const idx = agentKeys.indexOf(agent.villager.id);
-        const angle = (idx / Math.max(1, agentKeys.length)) * Math.PI * 2;
-        const radius = 1.45 + Math.sin(angle * 4) * 0.25;
-        agent.target = RESOURCE_NODES.campfire.clone().add(
-          new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius)
-        );
-        agent.state = 'eating_meal';
-        agent.rig.wheatCarry.visible = false;
-        agent.rig.toolSlot.visible = false;
-        agent.rig.mealBowl.visible = true;
-        return;
-      }
+    agent.currentActivity = decision.activity;
+    agent.activityDuration = decision.duration;
+    agent.activityTimer = 0;
+    agent.socialPartnerId = decision.targetVillagerId;
 
-      if (routine === 'sleep') {
-        const agentKeys = Array.from(agentsRef.current.keys());
-        const idx = agentKeys.indexOf(agent.villager.id);
-        const angle = (idx / Math.max(1, agentKeys.length)) * Math.PI * 2 + Math.PI;
-        const radius = 1.8 + Math.cos(angle * 3) * 0.3;
-        agent.target = RESOURCE_NODES.campfire.clone().add(
-          new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius)
-        );
-        agent.state = 'sleeping';
-        agent.rig.wheatCarry.visible = false;
-        agent.rig.toolSlot.visible = false;
-        agent.rig.mealBowl.visible = false;
-        return;
-      }
-    }
-
-    // 2. VERIFICAÇÃO DE EXPEDIENTE INDIVIDUAL:
-    // Se o aldeão for 'idle' OU estiver fora do seu horário de trabalho (isWorking === false):
-    // Fora do expediente, NÃO deve continuar executando animação de trabalho.
-    // Retorna para a área comum da vila e relaxa em comportamento idle/social existente.
-    if (job === 'idle' || !isWorking) {
+    // 1. TRABALHO (working): Prioridade durante o expediente
+    if (decision.activity === 'working') {
       agent.rig.mealBowl.visible = false;
-      agent.rig.toolSlot.visible = false;
-      agent.rig.wheatCarry.visible = false;
+      agent.rig.toolSlot.visible = true;
+      setupToolForJob(agent.rig.toolSlot, job);
 
-      // Posição na área comum da vila (fogueira / praça central)
-      const agentKeys = Array.from(agentsRef.current.keys());
-      const idx = agentKeys.indexOf(agent.villager.id);
-      const angle = (idx / Math.max(1, agentKeys.length)) * Math.PI * 2;
-      const radius = 2.0 + (idx % 3) * 0.45;
-      agent.target = RESOURCE_NODES.campfire.clone().add(
-        new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius)
-      );
-      agent.state = 'idle';
-      agent.idleTimer = 0;
-      agent.idleDuration = 4.0 + Math.random() * 4.0;
+      if (job === 'farmer') {
+        agent.target = RESOURCE_NODES.wheat.clone().add(
+          new THREE.Vector3((Math.random() - 0.5) * 2.2, 0, (Math.random() - 0.5) * 2.2)
+        );
+      } else if (job === 'lumberjack') {
+        agent.target = RESOURCE_NODES.wood.clone().add(
+          new THREE.Vector3((Math.random() - 0.5) * 2.2, 0, (Math.random() - 0.5) * 2.2)
+        );
+      } else if (job === 'quarryman') {
+        agent.target = RESOURCE_NODES.stone.clone().add(
+          new THREE.Vector3((Math.random() - 0.5) * 1.8, 0, (Math.random() - 0.5) * 1.8)
+        );
+      } else if (job === 'potter') {
+        agent.target = RESOURCE_NODES.clay.clone().add(
+          new THREE.Vector3((Math.random() - 0.5) * 1.8, 0, (Math.random() - 0.5) * 1.8)
+        );
+      } else if (job === 'builder') {
+        agent.target = RESOURCE_NODES.buildersite.clone().add(
+          new THREE.Vector3((Math.random() - 0.5) * 1.6, 0, (Math.random() - 0.5) * 1.6)
+        );
+      } else if (job === 'guard') {
+        const side = Math.random() > 0.5 ? 1 : -1;
+        agent.target = new THREE.Vector3(5.2 * side, 0, 5.0 + (Math.random() - 0.5) * 1.5);
+      } else if (job === 'elder') {
+        agent.target = RESOURCE_NODES.elderDesk.clone().add(
+          new THREE.Vector3((Math.random() - 0.5) * 0.8, 0, (Math.random() - 0.5) * 0.8)
+        );
+      } else {
+        agent.target = RESOURCE_NODES.campfire.clone();
+      }
+
+      agent.state = 'walking_to_resource';
+      agent.rig.wheatCarry.visible = false;
       return;
     }
 
-    // 3. HORÁRIO DE TRABALHO ATIVO (isWorking === true & job !== 'idle'):
-    // Move o aldeão diretamente para a área específica da tela baseada no cargo atribuído
-    agent.rig.mealBowl.visible = false;
-    agent.rig.toolSlot.visible = true;
-    setupToolForJob(agent.rig.toolSlot, job);
+    // Atividades fora do expediente: ferramenta guardada
+    agent.rig.toolSlot.visible = false;
+    agent.rig.wheatCarry.visible = false;
 
-    if (job === 'farmer') {
-      // 🌾 Move para os CAMPOS DE TRIGO
-      agent.target = RESOURCE_NODES.wheat.clone().add(
-        new THREE.Vector3((Math.random() - 0.5) * 2.2, 0, (Math.random() - 0.5) * 2.2)
-      );
-      agent.state = 'walking_to_resource';
-      agent.rig.wheatCarry.visible = false;
-    } else if (job === 'lumberjack') {
-      // 🪵 Move para a FLORESTA / BOSQUE DE CONÍFERAS
-      agent.target = RESOURCE_NODES.wood.clone().add(
-        new THREE.Vector3((Math.random() - 0.5) * 2.2, 0, (Math.random() - 0.5) * 2.2)
-      );
-      agent.state = 'walking_to_resource';
-      agent.rig.wheatCarry.visible = false;
-    } else if (job === 'quarryman') {
-      // 🪨 Move para a PEDREIRA DE ROCHAS
-      agent.target = RESOURCE_NODES.stone.clone().add(
-        new THREE.Vector3((Math.random() - 0.5) * 1.8, 0, (Math.random() - 0.5) * 1.8)
-      );
-      agent.state = 'walking_to_resource';
-      agent.rig.wheatCarry.visible = false;
-    } else if (job === 'potter') {
-      // 🧱 Move para a MARGEM FLUVIAL DE ARGILA
-      agent.target = RESOURCE_NODES.clay.clone().add(
-        new THREE.Vector3((Math.random() - 0.5) * 1.8, 0, (Math.random() - 0.5) * 1.8)
-      );
-      agent.state = 'walking_to_resource';
-      agent.rig.wheatCarry.visible = false;
-    } else if (job === 'builder') {
-      // 🔨 Move para o CANTEIRO DE OBRAS E ANDAIMES
-      agent.target = RESOURCE_NODES.buildersite.clone().add(
-        new THREE.Vector3((Math.random() - 0.5) * 1.6, 0, (Math.random() - 0.5) * 1.6)
-      );
-      agent.state = 'walking_to_resource';
-      agent.rig.wheatCarry.visible = false;
-    } else if (job === 'guard') {
-      // 🛡️ Move para os POSTOS DE PATRULHA E DEFESA
-      const side = Math.random() > 0.5 ? 1 : -1;
-      agent.target = new THREE.Vector3(5.2 * side, 0, 5.0 + (Math.random() - 0.5) * 1.5);
-      agent.state = 'walking_to_resource';
-      agent.rig.wheatCarry.visible = false;
-    } else if (job === 'elder') {
-      // 📜 Move para a MESA DE ESTUDOS E SABEDORIA
-      agent.target = RESOURCE_NODES.elderDesk.clone().add(
-        new THREE.Vector3((Math.random() - 0.5) * 0.8, 0, (Math.random() - 0.5) * 0.8)
-      );
-      agent.state = 'walking_to_resource';
-      agent.rig.wheatCarry.visible = false;
-    } else {
-      // 💤 Aldeão livre / desocupado: permanece no Centro / Fogueira
+    // 2. REFEIÇÃO (eating): café, almoço ou jantar
+    if (decision.activity === 'eating') {
+      const agentKeys = Array.from(agentsRef.current.keys());
+      const idx = agentKeys.indexOf(agent.villager.id);
+      const angle = (idx / Math.max(1, agentKeys.length)) * Math.PI * 2;
+      const radius = 1.45 + Math.sin(angle * 4) * 0.25;
       agent.target = RESOURCE_NODES.campfire.clone().add(
-        new THREE.Vector3((Math.random() - 0.5) * 2.8, 0, (Math.random() - 0.5) * 2.8)
+        new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius)
       );
-      agent.state = 'idle';
-      agent.rig.wheatCarry.visible = false;
-      agent.idleTimer = 0;
-      agent.idleDuration = 4.0 + Math.random() * 4.0;
+      agent.state = 'eating_meal';
+      agent.rig.mealBowl.visible = true;
+      return;
     }
+
+    agent.rig.mealBowl.visible = false;
+
+    // 3. REPOUSO NOTURNO (sleeping): 21:30 às 05:30 nas cabanas da aldeia
+    // Regra: 2 por cabana no nível 1, +2 a cada novo nível da cabana
+    if (decision.activity === 'sleeping') {
+      const allVillagers = gameState.villagers;
+      const villagerIdx = allVillagers.findIndex((v) => v.id === agent.villager.id);
+      const safeIdx = villagerIdx >= 0 ? villagerIdx : 0;
+
+      // Capacidade por cabana: 2 na base + 2 por nível adicional
+      const hutLevel = Math.max(1, gameState.buildings.hut?.level || 1);
+      const capacityPerHut = 2 + (hutLevel - 1) * 2; // = hutLevel * 2
+
+      // Cabanas disponíveis na vila
+      const hutsCount = Math.max(1, gameState.buildings.hut?.count || 1);
+      const availableShelters: { key: string; fallback: { x: number; z: number } }[] = [
+        { key: 'shelter_1', fallback: { x: -2.8, z: -1.8 } },
+      ];
+      if (hutsCount >= 2 || (gameState.buildings.stone_dwelling?.count || 0) >= 1) {
+        availableShelters.push({ key: 'shelter_2', fallback: { x: -2.8, z: 1.8 } });
+      }
+      if (hutsCount >= 3 || (gameState.buildings.stone_dwelling?.count || 0) >= 2) {
+        availableShelters.push({ key: 'shelter_3', fallback: { x: 2.8, z: -2.0 } });
+      }
+      if (hutsCount >= 4) {
+        availableShelters.push({ key: 'shelter_4', fallback: { x: 2.8, z: 2.0 } });
+      }
+
+      // Distribuição: acomoda até capacityPerHut na Cabana 1, depois Cabana 2, etc.
+      const targetHutIndex = Math.min(
+        Math.floor(safeIdx / capacityPerHut),
+        availableShelters.length - 1
+      );
+      const chosenShelter = availableShelters[targetHutIndex];
+      const slotInHut = safeIdx % capacityPerHut;
+
+      const shelterPos = getNodePos(chosenShelter.key, chosenShelter.fallback);
+
+      // Posiciona os aldeões em seus respectivos leitos dentro/ao redor da cabana
+      const angle = (slotInHut / capacityPerHut) * Math.PI * 2;
+      const bedRadius = 0.65 + (slotInHut % 2) * 0.16;
+      agent.target = shelterPos.clone().add(
+        new THREE.Vector3(Math.cos(angle) * bedRadius, 0, Math.sin(angle) * bedRadius)
+      );
+      agent.state = 'sleeping';
+      return;
+    }
+
+    // 4. SOCIALIZAÇÃO (socializing): caminha até outro aldeão para interagir
+    if (decision.activity === 'socializing' && decision.targetVillagerId) {
+      const partner = agentsRef.current.get(decision.targetVillagerId);
+      if (partner) {
+        const offsetAngle = Math.random() * Math.PI * 2;
+        agent.target = partner.pos.clone().add(
+          new THREE.Vector3(Math.cos(offsetAngle) * 1.25, 0, Math.sin(offsetAngle) * 1.25)
+        );
+        agent.state = 'socializing';
+        return;
+      }
+    }
+
+    // 5. PASSEIO / WANDERING (wandering): caminha pela área central da aldeia
+    if (decision.activity === 'wandering' && decision.targetOffset) {
+      agent.target = new THREE.Vector3(
+        decision.targetOffset.x,
+        getTerrainHeight(decision.targetOffset.x, decision.targetOffset.z),
+        decision.targetOffset.z
+      );
+      agent.state = 'wandering';
+      return;
+    }
+
+    // 6. DESCANSO (resting): perto da fogueira, cabana ou centro
+    if (decision.activity === 'resting') {
+      const agentKeys = Array.from(agentsRef.current.keys());
+      const idx = agentKeys.indexOf(agent.villager.id);
+      const angle = (idx / Math.max(1, agentKeys.length)) * Math.PI * 2;
+      const radius = 1.9 + (idx % 3) * 0.45;
+      agent.target = RESOURCE_NODES.campfire.clone().add(
+        new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius)
+      );
+      agent.state = 'resting';
+      agent.idleAction = Math.random() > 0.5 ? 'sit' : 'warm_hands';
+      return;
+    }
+
+    // 7. IDLE (idle): observação calma na vila
+    const agentKeys = Array.from(agentsRef.current.keys());
+    const idx = agentKeys.indexOf(agent.villager.id);
+    const angle = (idx / Math.max(1, agentKeys.length)) * Math.PI * 2;
+    const radius = 2.2 + (idx % 3) * 0.4;
+    agent.target = RESOURCE_NODES.campfire.clone().add(
+      new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius)
+    );
+    agent.state = 'idle';
   };
 
   // Synchronize villager pathing whenever facilities are moved
@@ -1203,6 +1266,20 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
         // Idle / Working pose
         rig.leftLeg.rotation.x = THREE.MathUtils.lerp(rig.leftLeg.rotation.x, 0, 0.2);
         rig.rightLeg.rotation.x = THREE.MathUtils.lerp(rig.rightLeg.rotation.x, 0, 0.2);
+
+        // Reavaliação periódica de atividades autônomas fora do expediente
+        if (
+          agent.state !== 'working' &&
+          agent.state !== 'carrying_to_storage' &&
+          agent.state !== 'walking_to_resource'
+        ) {
+          agent.activityTimer += delta;
+          if (agent.activityTimer >= agent.activityDuration) {
+            agent.activityTimer = 0;
+            assignAgentJobBehavior(agent, agent.villager.job, false);
+            return;
+          }
+        }
 
         // Working behaviors
         if (agent.state === 'working') {
@@ -1346,6 +1423,87 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
           rig.rightArm.rotation.x = 0.58;
           rig.head.rotation.x = THREE.MathUtils.lerp(rig.head.rotation.x, 0.25, 0.08);
           rig.head.position.y = 1.32 + Math.sin(time * 1.4 + agent.idleSeed) * 0.02;
+        } else if (agent.state === 'socializing') {
+          // =========================================================================
+          // SOCIALIZAÇÃO AUTÔNOMA: Aldeões conversam e gesticulam amigavelmente
+          // =========================================================================
+          rig.mealBowl.visible = false;
+          rig.toolSlot.visible = false;
+          rig.wheatCarry.visible = false;
+
+          if (agent.socialPartnerId) {
+            const partner = agentsRef.current.get(agent.socialPartnerId);
+            if (partner) {
+              const partnerDir = partner.pos.clone().sub(agent.pos).normalize();
+              const targetAngle = Math.atan2(partnerDir.x, partnerDir.z);
+              rig.root.rotation.y = THREE.MathUtils.lerp(rig.root.rotation.y, targetAngle, 0.1);
+            }
+          }
+          agent.idleSitTransition = THREE.MathUtils.lerp(agent.idleSitTransition, 0, 0.1);
+          rig.root.position.y = THREE.MathUtils.lerp(rig.root.position.y, 0, 0.1);
+          rig.leftLeg.rotation.set(0, 0, 0);
+          rig.rightLeg.rotation.set(0, 0, 0);
+
+          const talkCycle = Math.sin(time * 3.6 + agent.idleSeed);
+          rig.rightArm.rotation.x = THREE.MathUtils.lerp(rig.rightArm.rotation.x, 0.42 + talkCycle * 0.28, 0.12);
+          rig.rightArm.rotation.z = THREE.MathUtils.lerp(rig.rightArm.rotation.z, 0.25, 0.1);
+          rig.leftArm.rotation.x = THREE.MathUtils.lerp(rig.leftArm.rotation.x, 0.18, 0.1);
+          rig.leftArm.rotation.z = -0.14;
+
+          rig.head.rotation.x = THREE.MathUtils.lerp(rig.head.rotation.x, Math.sin(time * 2.8 + agent.idleSeed) * 0.08, 0.1);
+          rig.head.rotation.y = THREE.MathUtils.lerp(rig.head.rotation.y, Math.sin(time * 1.2 + agent.idleSeed) * 0.1, 0.08);
+          rig.head.position.y = 1.35 + Math.sin(time * 2.0) * 0.02;
+        } else if (agent.state === 'wandering') {
+          // =========================================================================
+          // PASSEIO AUTÔNOMO: Observação atenta da paisagem e da vila
+          // =========================================================================
+          rig.mealBowl.visible = false;
+          rig.toolSlot.visible = false;
+          rig.wheatCarry.visible = false;
+
+          agent.idleSitTransition = THREE.MathUtils.lerp(agent.idleSitTransition, 0, 0.1);
+          rig.root.position.y = THREE.MathUtils.lerp(rig.root.position.y, 0, 0.1);
+          rig.leftLeg.rotation.set(0, 0, 0);
+          rig.rightLeg.rotation.set(0, 0, 0);
+
+          const lookAngle = Math.sin(time * 0.9 + agent.idleSeed) * 0.45;
+          rig.head.rotation.y = THREE.MathUtils.lerp(rig.head.rotation.y, lookAngle, 0.08);
+          rig.head.rotation.x = THREE.MathUtils.lerp(rig.head.rotation.x, 0.06, 0.08);
+          rig.body.rotation.y = rig.head.rotation.y * 0.3;
+          rig.leftArm.rotation.x = THREE.MathUtils.lerp(rig.leftArm.rotation.x, 0.05, 0.1);
+          rig.rightArm.rotation.x = THREE.MathUtils.lerp(rig.rightArm.rotation.x, 0.05, 0.1);
+        } else if (agent.state === 'resting') {
+          // =========================================================================
+          // DESCANSO AUTÔNOMO: Perto da fogueira ou cabana
+          // =========================================================================
+          rig.mealBowl.visible = false;
+          rig.toolSlot.visible = false;
+          rig.wheatCarry.visible = false;
+
+          if (agent.idleAction === 'warm_hands') {
+            agent.idleSitTransition = THREE.MathUtils.lerp(agent.idleSitTransition, 0.0, 0.1);
+            rig.root.position.y = THREE.MathUtils.lerp(rig.root.position.y, 0, 0.1);
+            rig.leftLeg.rotation.set(0, 0, 0);
+            rig.rightLeg.rotation.set(0, 0, 0);
+
+            rig.leftArm.rotation.x = THREE.MathUtils.lerp(rig.leftArm.rotation.x, 0.82 + Math.sin(time * 2.5) * 0.02, 0.1);
+            rig.rightArm.rotation.x = THREE.MathUtils.lerp(rig.rightArm.rotation.x, 0.82 + Math.sin(time * 2.5) * 0.02, 0.1);
+            rig.leftArm.rotation.z = THREE.MathUtils.lerp(rig.leftArm.rotation.z, -0.16 + Math.sin(time * 6) * 0.025, 0.1);
+            rig.rightArm.rotation.z = THREE.MathUtils.lerp(rig.rightArm.rotation.z, 0.16 - Math.sin(time * 6) * 0.025, 0.1);
+            rig.body.rotation.x = THREE.MathUtils.lerp(rig.body.rotation.x, 0.12, 0.08);
+            rig.head.rotation.x = THREE.MathUtils.lerp(rig.head.rotation.x, 0.14, 0.08);
+          } else {
+            agent.idleSitTransition = THREE.MathUtils.lerp(agent.idleSitTransition, 1.0, 0.08);
+            rig.root.position.y = -0.42 * agent.idleSitTransition;
+            rig.leftLeg.rotation.x = THREE.MathUtils.lerp(rig.leftLeg.rotation.x, Math.PI / 2.2, 0.08);
+            rig.rightLeg.rotation.x = THREE.MathUtils.lerp(rig.rightLeg.rotation.x, Math.PI / 2.2, 0.08);
+            rig.leftLeg.rotation.z = -0.15 * agent.idleSitTransition;
+            rig.rightLeg.rotation.z = 0.15 * agent.idleSitTransition;
+            rig.body.rotation.x = THREE.MathUtils.lerp(rig.body.rotation.x, -0.06, 0.08);
+            rig.leftArm.rotation.x = THREE.MathUtils.lerp(rig.leftArm.rotation.x, 0.62, 0.08);
+            rig.rightArm.rotation.x = THREE.MathUtils.lerp(rig.rightArm.rotation.x, 0.62, 0.08);
+            rig.head.position.y = 1.35 + Math.sin(time * 2.0 + agent.idleSeed) * 0.025;
+          }
         } else {
           // =========================================================================
           // IDLE CYCLES SYSTEM: Sway, Look Around, Sit, Warm Hands, Scratch Head
@@ -1361,7 +1519,6 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
             const rand = Math.random();
 
             if (distToFire < 3.2) {
-              // High chance to sit or warm hands near the campfire
               if (rand < 0.35) {
                 agent.idleAction = 'sit';
               } else if (rand < 0.60) {
@@ -1373,7 +1530,6 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
                 agent.idleAction = 'sway';
               }
             } else {
-              // Away from campfire
               if (rand < 0.35) {
                 agent.idleAction = 'look_around';
                 agent.idleLookAngle = (Math.random() - 0.5) * 1.4;
@@ -1384,13 +1540,6 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
               } else {
                 agent.idleAction = 'sit';
               }
-            }
-
-            // Small chance to walk to a new spot around the campfire (18% chance)
-            if (Math.random() < 0.18) {
-              agent.target = RESOURCE_NODES.campfire.clone().add(
-                new THREE.Vector3((Math.random() - 0.5) * 3.0, 0, (Math.random() - 0.5) * 3.0)
-              );
             }
           }
 
@@ -1807,7 +1956,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       onContextMenu={(e) => e.preventDefault()}
     >
       {/* 3D View Controls HUD Bar (Positioned below top game header) */}
-      <div className="absolute top-16 right-3 sm:right-4 z-10 flex flex-wrap items-center gap-2 pointer-events-none">
+      <div className="absolute top-[5.6rem] right-2 sm:right-3 z-10 flex flex-wrap items-center gap-1.5 pointer-events-none">
         {/* Camera Preset Quick Buttons focused on Work Areas */}
         <div className="pointer-events-auto bg-[#FDFBF7]/95 backdrop-blur-xs border-2 border-[#33261D] p-1 rounded-xl shadow-md flex items-center gap-1 overflow-x-auto max-w-[85vw] sm:max-w-none">
           <button
@@ -1900,42 +2049,6 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
             <span className="sm:hidden">{isMoveMode ? 'Ativo' : 'Mover'}</span>
           </button>
         </div>
-
-        {/* Time of Day / Atmospheric Lighting Badge & Cycle Button */}
-        <div className="pointer-events-auto bg-[#FDFBF7]/95 backdrop-blur-xs border-2 border-[#33261D] p-1 rounded-xl shadow-md flex items-center gap-1.5">
-          <button
-            onClick={() => {
-              audio.playWood();
-              // Cycle through: auto -> day -> sunset -> night -> dawn -> auto
-              const next: Record<string, 'auto' | TimeOfDay> = {
-                auto: 'day',
-                day: 'sunset',
-                sunset: 'night',
-                night: 'dawn',
-                dawn: 'auto',
-              };
-              setTimeOfDayOverride(next[timeOfDayOverride]);
-            }}
-            className={`px-2.5 py-1 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
-              effectiveTimeOfDay === 'night'
-                ? 'bg-[#0f172a] text-[#93c5fd] shadow-xs'
-                : effectiveTimeOfDay === 'sunset'
-                ? 'bg-[#7c2d12] text-[#fed7aa] shadow-xs'
-                : effectiveTimeOfDay === 'dawn'
-                ? 'bg-[#581c87] text-[#f5d0fe] shadow-xs'
-                : 'bg-[#FAF3E7] text-amber-950 hover:bg-[#EFE4CE]'
-            }`}
-            title={`Iluminação: ${TIME_OF_DAY_INFO[effectiveTimeOfDay].name}. Alterna suavemente entre dia e noite.`}
-          >
-            <span className="text-sm">{TIME_OF_DAY_INFO[effectiveTimeOfDay].icon}</span>
-            <span>{TIME_OF_DAY_INFO[effectiveTimeOfDay].name}</span>
-            {timeOfDayOverride === 'auto' ? (
-              <span className="text-[10px] opacity-75 font-mono">(Automático)</span>
-            ) : (
-              <span className="text-[10px] bg-white/20 px-1 rounded font-mono">Fixo</span>
-            )}
-          </button>
-        </div>
       </div>
 
       {/* Move Facility Floating Toolbar */}
@@ -2023,7 +2136,11 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       )}
 
       {/* Selected Character 3D Inspector Card */}
-      {selectedVillager && (
+      {selectedVillager && (() => {
+        const selectedAgent = agentsRef.current.get(selectedVillager.id);
+        const currentActivity = selectedAgent?.currentActivity || (selectedVillager.isWorking ? 'working' : 'idle');
+
+        return (
         <div className="absolute top-16 left-3 sm:left-4 z-10 bg-[#FDFBF7] border-3 border-[#33261D] rounded-2xl p-3 shadow-xl max-w-xs max-h-[calc(100%-4.5rem)] overflow-y-auto animate-in fade-in slide-in-from-top-2 pointer-events-auto">
           <div className="flex items-center justify-between gap-3 border-b-2 border-stone-200 pb-2 mb-2">
             <div className="flex items-center gap-2">
@@ -2085,9 +2202,30 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
               </span>
             </div>
 
+            {/* Current Autonomous Activity */}
+            <div className="flex items-center justify-between text-[11px] pt-1 border-t border-stone-200/80">
+              <span className="text-stone-600">Ação Autônoma:</span>
+              <span className="font-extrabold text-amber-900 flex items-center gap-1">
+                {currentActivity === 'working' && '🔨 Trabalhando'}
+                {currentActivity === 'eating' && '🥣 Fazendo refeição'}
+                {currentActivity === 'sleeping' && (() => {
+                  const hutLvl = Math.max(1, gameState.buildings.hut?.level || 1);
+                  const cap = 2 + (hutLvl - 1) * 2;
+                  const vIdx = Math.max(0, gameState.villagers.findIndex((v) => v.id === selectedVillager.id));
+                  const hutNum = Math.floor(vIdx / cap) + 1;
+                  const bedNum = (vIdx % cap) + 1;
+                  return `😴 Dormindo na Cabana ${hutNum} (Leito ${bedNum}/${cap})`;
+                })()}
+                {currentActivity === 'socializing' && '💬 Conversando'}
+                {currentActivity === 'wandering' && '🚶 Passeando'}
+                {currentActivity === 'resting' && '🧘 Descansando'}
+                {currentActivity === 'idle' && '🌿 Observando a vila'}
+              </span>
+            </div>
+
             {/* Current Daily Routine / Meal Status */}
             <div className="flex items-center justify-between text-[11px] pt-1 border-t border-stone-200/80">
-              <span className="text-stone-600">Rotina Atual:</span>
+              <span className="text-stone-600">Período Solar:</span>
               <span className="font-extrabold text-amber-900 flex items-center gap-1">
                 <span>{getCelestialTimeInfo(gameState.gameHour ?? 6.0).routineIcon}</span>
                 <span>{getCelestialTimeInfo(gameState.gameHour ?? 6.0).routineTitle}</span>
@@ -2175,7 +2313,8 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
             💡 Dica: Clique no chão 3D para ordenar este aldeão a se mover para aquele ponto!
           </p>
         </div>
-      )}
+        );
+      })()}
 
       {/* Controls helper hint in corner */}
       <div className="absolute bottom-3 right-3 z-10 bg-[#FDFBF7]/85 backdrop-blur-xs border-2 border-[#33261D] px-3 py-1.5 rounded-xl text-[11px] font-medium text-stone-700 shadow-sm pointer-events-none flex items-center gap-2">

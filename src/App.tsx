@@ -4,8 +4,6 @@ import { INITIAL_STATE, RANDOM_EVENTS } from './data/initialData';
 import { ThreeVillageScene } from './three/ThreeVillageScene';
 import { ExpandableResourceBar } from './components/ExpandableResourceBar';
 import { TaskAssignmentBar } from './components/TaskAssignmentBar';
-import { BuildingPanel } from './components/BuildingPanel';
-import { TechTreeModal } from './components/TechTreeModal';
 import { CelestialTimeCycle } from './components/CelestialTimeCycle';
 import { TurnReportModal } from './components/TurnReportModal';
 import { EventModal } from './components/EventModal';
@@ -32,13 +30,12 @@ import {
 import {
   calculateHousingCapacity,
   startBuildingConstruction,
+  upgradeBuildingLevel,
 } from './game/BuildingSystem';
 import { advanceSimulationDay } from './game/Simulation';
 import { updateVillagerWorkStatus } from './game/ScheduleSystem';
 import {
-  BookOpen,
   Edit2,
-  Hammer,
   HelpCircle,
   Play,
   RotateCcw,
@@ -69,13 +66,8 @@ export default function App() {
   // UI Drawer / Modal states
   const [isResourceExpanded, setIsResourceExpanded] = useState(false);
   const [isTaskBarExpanded, setIsTaskBarExpanded] = useState(false);
-  const [isBuildingDrawerOpen, setIsBuildingDrawerOpen] = useState(false);
-  const [isTechTreeOpen, setIsTechTreeOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [selectedVillagerId, setSelectedVillagerId] = useState<string | null>(null);
-
-  // Screen aspect ratio mode: Defaults to 16:9 mobile screen
-  const [aspectMode, setAspectMode] = useState<'landscape_16_9' | 'portrait_9_16' | 'fullscreen'>('landscape_16_9');
 
   // Player name editing state
   const [isEditingName, setIsEditingName] = useState(false);
@@ -328,6 +320,20 @@ export default function App() {
     });
   };
 
+  // Upgrade building level (ex: Cabana +2 vagas por nível)
+  const handleUpgradeBuilding = (buildingId: string) => {
+    setGameState((prev) => {
+      const result = upgradeBuildingLevel(prev.buildings, prev.resources, buildingId);
+      if (!result.success) return prev;
+      audio.playBuild();
+      return {
+        ...prev,
+        resources: result.updatedResources,
+        buildings: result.updatedBuildings,
+      };
+    });
+  };
+
   // Research Tech
   const handleResearchTech = (techId: string) => {
     setGameState((prev) => {
@@ -408,64 +414,9 @@ export default function App() {
   const assignedCount = gameState.villagers.length - idleCount;
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#18130E] flex flex-col items-center justify-center relative select-none">
-      {/* Aspect Ratio Switcher HUD (Discreet & Elegant) */}
-      <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-50 flex items-center gap-1 bg-[#2C241E]/90 backdrop-blur-md px-2 py-1 rounded-xl border border-amber-900/40 text-[11px] font-bold text-[#FAF3E7] shadow-xl pointer-events-auto">
-        <span className="text-[10px] text-amber-300/80 font-mono hidden sm:inline mr-1">TELA:</span>
-        <button
-          onClick={() => {
-            audio.playWood();
-            setAspectMode('landscape_16_9');
-          }}
-          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-            aspectMode === 'landscape_16_9'
-              ? 'bg-amber-600 text-white shadow-xs'
-              : 'text-stone-300 hover:text-white hover:bg-stone-800/60'
-          }`}
-          title="Celular 16:9 Paisagem (Padrão Widescreen)"
-        >
-          📱 16:9
-        </button>
-        <button
-          onClick={() => {
-            audio.playWood();
-            setAspectMode('portrait_9_16');
-          }}
-          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-            aspectMode === 'portrait_9_16'
-              ? 'bg-amber-600 text-white shadow-xs'
-              : 'text-stone-300 hover:text-white hover:bg-stone-800/60'
-          }`}
-          title="Celular 9:16 Retrato (Vertical)"
-        >
-          📲 9:16
-        </button>
-        <button
-          onClick={() => {
-            audio.playWood();
-            setAspectMode('fullscreen');
-          }}
-          className={`px-1.5 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-            aspectMode === 'fullscreen'
-              ? 'bg-amber-600 text-white shadow-xs'
-              : 'text-stone-300 hover:text-white hover:bg-stone-800/60'
-          }`}
-          title="Ajustar à Tela Cheia"
-        >
-          ⛶
-        </button>
-      </div>
-
-      {/* Mobile Screen Container: Exactly 16:9 for phone */}
-      <div
-        className={`relative overflow-hidden bg-[#DCE7EB] font-sans selection:bg-[#DEB887] select-none transition-all duration-300 ${
-          aspectMode === 'landscape_16_9'
-            ? 'w-full max-w-[calc(100vh*16/9)] h-full max-h-[calc(100vw*9/16)] aspect-[16/9] shadow-2xl shadow-black/90 sm:rounded-2xl sm:border-4 border-[#33261D]'
-            : aspectMode === 'portrait_9_16'
-            ? 'h-full max-h-[calc(100vw*16/9)] w-full max-w-[calc(100vh*9/16)] aspect-[9/16] shadow-2xl shadow-black/90 sm:rounded-3xl sm:border-4 border-[#33261D]'
-            : 'w-full h-full'
-        }`}
-      >
+    <div className="h-screen w-screen overflow-hidden bg-[#18130E] flex flex-col items-center justify-center relative select-none p-0 sm:p-2">
+      {/* Mobile Screen Container: Strictly 9:16 Portrait for Smartphone */}
+      <div className="relative overflow-hidden bg-[#DCE7EB] font-sans selection:bg-[#DEB887] select-none h-full max-h-[calc(100vw*16/9)] w-full max-w-[calc(100vh*9/16)] aspect-[9/16] shadow-2xl shadow-black/95 sm:rounded-[2.2rem] sm:border-[5px] border-[#33261D]">
         {/* 1. 3D GAME VIEWPORT (Fills the phone viewport) */}
         <ThreeVillageScene
           gameState={gameState}
@@ -475,172 +426,99 @@ export default function App() {
           onUpdateVillagerSchedule={handleUpdateVillagerSchedule}
         />
 
-        {/* 2. TOP SINGLE LINE HEADER */}
-        <header className="absolute top-0 left-0 right-0 z-30 h-13 sm:h-14 bg-[#F5EAD9]/95 backdrop-blur-md border-b-3 border-[#33261D] px-2.5 sm:px-4 flex items-center justify-between gap-2 shadow-md">
-        {/* Left: Player Name & Season */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {/* Player Name (Clickable / Editable) */}
-          {isEditingName ? (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                savePlayerName();
-              }}
-              className="flex items-center gap-1"
-            >
-              <input
-                type="text"
-                value={tempPlayerName}
-                onChange={(e) => setTempPlayerName(e.target.value)}
-                onBlur={savePlayerName}
-                autoFocus
-                maxLength={24}
-                className="bg-white border-2 border-[#33261D] rounded-lg px-2 py-0.5 text-xs font-display font-black text-[#2C241E] w-32 sm:w-44 focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-              <button
-                type="submit"
-                className="text-xs bg-[#33261D] text-white px-2 py-0.5 rounded font-bold cursor-pointer"
+        {/* 2. TOP MOBILE HEADER (Optimized for 9:16 vertical smartphone screen) */}
+        <header className="absolute top-0 left-0 right-0 z-30 bg-[#F5EAD9]/95 backdrop-blur-md border-b-3 border-[#33261D] px-2.5 sm:px-3 py-1.5 flex flex-col gap-1.5 shadow-md">
+          {/* Row 1: Player Name, Celestial Time Cycle, Sound & Menu */}
+          <div className="flex items-center justify-between gap-1.5">
+            {/* Player Name */}
+            {isEditingName ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  savePlayerName();
+                }}
+                className="flex items-center gap-1"
               >
-                ✓
-              </button>
-            </form>
-          ) : (
-            <button
-              onClick={() => {
-                setTempPlayerName(gameState.playerName || 'Líder Tribal');
-                setIsEditingName(true);
-              }}
-              className="group flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#FFFBF5] border-2 border-[#33261D] hover:bg-[#EFE4CE] transition-all cursor-pointer shadow-2xs"
-              title="Clique para editar o Nome do Jogador"
-            >
-              <span className="text-sm">👑</span>
-              <div className="text-left">
-                <span className="text-[9px] font-bold text-stone-500 uppercase tracking-wider block leading-none">
-                  Jogador
-                </span>
-                <span className="font-display font-black text-xs sm:text-sm text-[#2C241E] leading-tight flex items-center gap-1">
+                <input
+                  type="text"
+                  value={tempPlayerName}
+                  onChange={(e) => setTempPlayerName(e.target.value)}
+                  onBlur={savePlayerName}
+                  autoFocus
+                  maxLength={20}
+                  className="bg-white border-2 border-[#33261D] rounded-lg px-2 py-0.5 text-xs font-display font-black text-[#2C241E] w-28 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+                <button
+                  type="submit"
+                  className="text-xs bg-[#33261D] text-white px-1.5 py-0.5 rounded font-bold cursor-pointer"
+                >
+                  ✓
+                </button>
+              </form>
+            ) : (
+              <button
+                onClick={() => {
+                  setTempPlayerName(gameState.playerName || 'Líder Tribal');
+                  setIsEditingName(true);
+                }}
+                className="group flex items-center gap-1 px-2 py-1 rounded-xl bg-[#FFFBF5] border-2 border-[#33261D] hover:bg-[#EFE4CE] transition-all cursor-pointer shadow-2xs shrink-0"
+                title="Clique para editar o Nome do Jogador"
+              >
+                <span className="text-sm">👑</span>
+                <span className="font-display font-black text-xs text-[#2C241E] truncate max-w-[100px] sm:max-w-none">
                   {gameState.playerName || 'Líder Tribal'}
-                  <Edit2 size={10} className="text-stone-400 group-hover:text-stone-700" />
                 </span>
-              </div>
-            </button>
-          )}
-
-          {/* Compact Season & Year Badge */}
-          <div className="hidden md:flex items-center gap-1.5 bg-[#FAF3E7] border-2 border-stone-300 px-2.5 py-1 rounded-xl text-xs font-semibold text-stone-700">
-            <span>{['🌱', '☀️', '🍂', '❄️'][gameState.seasonIndex]}</span>
-            <span className="font-display font-extrabold text-[#78350F]">
-              {['Primavera', 'Verão', 'Outono', 'Inverno'][gameState.seasonIndex]}
-            </span>
-            <span className="text-stone-400">·</span>
-            <span className="text-[11px] font-mono font-bold">Ano {gameState.year}</span>
-          </div>
-        </div>
-
-        {/* Center: Expandable Resource Bar (Expands on click to show hidden resources like Clay, Knowledge, Defense) */}
-        <div className="flex items-center justify-center">
-          <ExpandableResourceBar
-            gameState={gameState}
-            isExpanded={isResourceExpanded}
-            onToggleExpand={() => setIsResourceExpanded(!isResourceExpanded)}
-            rates={rates}
-          />
-        </div>
-
-        {/* Right: Action Buttons & Navigation */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Tasks Drawer Toggle Button */}
-          <button
-            onClick={() => {
-              audio.playWood();
-              setIsTaskBarExpanded(!isTaskBarExpanded);
-            }}
-            className={`px-2.5 sm:px-3 py-1.5 rounded-xl border-2 font-display font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
-              isTaskBarExpanded
-                ? 'bg-[#33261D] text-white border-[#33261D]'
-                : 'bg-[#FFFDF9] text-stone-900 border-[#33261D] hover:bg-[#EBDDC8]'
-            }`}
-            title="Designar tarefas dos aldeões (+/-)"
-          >
-            <span className="text-sm">📋</span>
-            <span className="hidden sm:inline">Tarefas</span>
-            <span className="bg-[#E5B84B] text-[#2C241E] px-1 rounded text-[10px] font-mono font-bold">
-              {assignedCount}/{gameState.villagers.length}
-            </span>
-            {idleCount > 0 && (
-              <span className="bg-amber-100 text-amber-900 border border-amber-300 px-1 rounded text-[9px] font-bold animate-pulse">
-                💤 {idleCount}
-              </span>
+                <Edit2 size={9} className="text-stone-400 group-hover:text-stone-700" />
+              </button>
             )}
-          </button>
 
-          {/* Buildings Menu Toggle */}
-          <button
-            onClick={() => {
-              audio.playWood();
-              setIsBuildingDrawerOpen(!isBuildingDrawerOpen);
-            }}
-            className={`px-2.5 sm:px-3 py-1.5 rounded-xl border-2 font-display font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
-              isBuildingDrawerOpen
-                ? 'bg-[#33261D] text-white border-[#33261D]'
-                : 'bg-[#FFFDF9] text-stone-900 border-[#33261D] hover:bg-[#EBDDC8]'
-            }`}
-            title="Construções da vila"
-          >
-            <Hammer size={14} />
-            <span className="hidden sm:inline">Construir</span>
-          </button>
+            {/* Celestial Continuous Time Cycle */}
+            <div className="scale-90 sm:scale-100 origin-center">
+              <CelestialTimeCycle
+                gameState={gameState}
+                onTogglePause={handleTogglePause}
+              />
+            </div>
 
-          {/* Tech Tree Modal Button */}
-          <button
-            onClick={() => {
-              audio.playWood();
-              setIsTechTreeOpen(true);
-            }}
-            className="px-2.5 sm:px-3 py-1.5 rounded-xl border-2 border-[#33261D] bg-[#FFFDF9] font-display font-bold text-xs text-stone-900 hover:bg-[#EBDDC8] transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
-            title="Pesquisas tecnológicas"
-          >
-            <BookOpen size={14} />
-            <span className="hidden sm:inline">Pesquisas</span>
-          </button>
+            {/* Quick Utility Buttons (Sound, Help, Reset) */}
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={handleToggleSound}
+                className="p-1 rounded-lg border-2 border-[#33261D] bg-[#FFFBF5] text-stone-700 hover:bg-[#EFE4CE] transition-colors"
+                title={gameState.soundEnabled ? 'Silenciar som' : 'Ativar som'}
+              >
+                {gameState.soundEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
+              </button>
+              <button
+                onClick={() => setIsHelpOpen(true)}
+                className="p-1 rounded-lg border-2 border-[#33261D] bg-[#FFFBF5] text-stone-700 hover:bg-[#EFE4CE] transition-colors"
+                title="Manual da Aldeia"
+              >
+                <HelpCircle size={13} />
+              </button>
+              <button
+                onClick={handleResetGame}
+                className="p-1 rounded-lg border-2 border-[#33261D] bg-[#FFFBF5] text-stone-700 hover:bg-red-50 hover:text-red-700 transition-colors"
+                title="Reiniciar Jogo"
+              >
+                <RotateCcw size={13} />
+              </button>
+            </div>
+          </div>
 
-          {/* Automatic Celestial Time Cycle (Sun icon in day, Moon icon in night, automatically advancing) */}
-          <CelestialTimeCycle
-            gameState={gameState}
-            onTogglePause={handleTogglePause}
-          />
+          {/* Row 2: Symmetrical Resource Bar (Centered across full width) */}
+          <div className="pt-1 border-t border-[#33261D]/15 w-full">
+            <ExpandableResourceBar
+              gameState={gameState}
+              isExpanded={isResourceExpanded}
+              onToggleExpand={() => setIsResourceExpanded(!isResourceExpanded)}
+              rates={rates}
+            />
+          </div>
+        </header>
 
-          {/* Sound Toggle */}
-          <button
-            onClick={handleToggleSound}
-            className="p-1.5 rounded-lg border-2 border-[#33261D] bg-[#FFFBF5] text-stone-700 hover:bg-[#EFE4CE] transition-colors"
-            title={gameState.soundEnabled ? 'Silenciar som' : 'Ativar som'}
-          >
-            {gameState.soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
-          </button>
-
-          {/* Help */}
-          <button
-            onClick={() => setIsHelpOpen(true)}
-            className="p-1.5 rounded-lg border-2 border-[#33261D] bg-[#FFFBF5] text-stone-700 hover:bg-[#EFE4CE] transition-colors"
-            title="Ajuda e Manual"
-          >
-            <HelpCircle size={14} />
-          </button>
-
-          {/* Reset */}
-          <button
-            onClick={handleResetGame}
-            className="p-1.5 rounded-lg border-2 border-[#33261D] bg-[#FFFBF5] text-stone-700 hover:bg-red-50 hover:text-red-700 transition-colors"
-            title="Reiniciar Jogo"
-          >
-            <RotateCcw size={14} />
-          </button>
-        </div>
-      </header>
-
-      {/* 3. BOTTOM FLOATING DOCK: Expandable Task Assignment Bar */}
-      <div className="absolute bottom-2 left-2 right-2 sm:left-4 sm:right-4 z-20 pointer-events-none">
+      {/* 3. FLOATING SHORTCUT ICON: Designar Tarefas, Obras & Pesquisas */}
+      <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20 pointer-events-none">
         <TaskAssignmentBar
           gameState={gameState}
           isOpen={isTaskBarExpanded}
@@ -652,53 +530,15 @@ export default function App() {
           onRecruitVillager={handleRecruitVillager}
           onUnlockJob={handleUnlockJob}
           onClaimMissionReward={handleClaimMissionReward}
+          onStartConstruction={handleStartConstruction}
+          onUpgradeBuilding={handleUpgradeBuilding}
+          onResearchTech={handleResearchTech}
           rates={rates}
         />
       </div>
-
-      {/* 4. FLOATING BUILDINGS MODAL / DRAWER */}
-      {isBuildingDrawerOpen && (
-        <div className="absolute inset-0 z-40 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in">
-          <div className="bg-[#FFFDF9] border-3 border-[#33261D] rounded-2xl p-4 sm:p-5 max-w-2xl w-full max-h-[82vh] overflow-y-auto shadow-2xl relative">
-            <div className="flex items-center justify-between pb-3 mb-3 border-b-2 border-stone-200">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">🔨</span>
-                <div>
-                  <h3 className="font-display font-black text-base text-stone-900">
-                    Obras & Infraestrutura da Vila
-                  </h3>
-                  <p className="text-xs font-hand font-bold text-stone-600">
-                    Construa habitações para acolher mais pessoas, celeiros e fortificações
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsBuildingDrawerOpen(false)}
-                className="text-stone-500 hover:text-stone-900 px-2.5 py-1 rounded-lg hover:bg-stone-100 font-bold text-xs border border-stone-300 cursor-pointer"
-              >
-                ✕ Fechar
-              </button>
-            </div>
-            <BuildingPanel
-              gameState={gameState}
-              onStartConstruction={(bId) => {
-                handleStartConstruction(bId);
-                setIsBuildingDrawerOpen(false);
-              }}
-            />
-          </div>
-        </div>
-      )}
       </div>
 
-      {/* 5. MODALS */}
-      <TechTreeModal
-        isOpen={isTechTreeOpen}
-        onClose={() => setIsTechTreeOpen(false)}
-        gameState={gameState}
-        onResearchTech={handleResearchTech}
-      />
-
+      {/* MODALS */}
       <TurnReportModal
         report={gameState.lastTurnReport}
         onClose={() => setGameState((prev) => ({ ...prev, lastTurnReport: null }))}

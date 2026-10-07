@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { Building, GameState } from '../types/game';
-import { Hammer, CheckCircle2, Clock, Lock, Sparkles, AlertCircle } from 'lucide-react';
+import { Hammer, CheckCircle2, Clock, Lock, Sparkles, AlertCircle, ArrowUpCircle } from 'lucide-react';
 import { audio } from '../utils/audio';
+import { getBuildingUpgradeCost } from '../game/BuildingSystem';
 
 interface BuildingPanelProps {
   gameState: GameState;
   onStartConstruction: (buildingId: string) => void;
+  onUpgradeBuilding?: (buildingId: string) => void;
 }
 
 export const BuildingPanel: React.FC<BuildingPanelProps> = ({
   gameState,
   onStartConstruction,
+  onUpgradeBuilding,
 }) => {
   const { buildings, resources, currentEra, technologies } = gameState;
   const [activeCategory, setActiveCategory] = useState<'all' | 'housing' | 'production' | 'defense' | 'wonder'>('all');
@@ -146,6 +149,7 @@ export const BuildingPanel: React.FC<BuildingPanelProps> = ({
                       </h4>
                       <p className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">
                         {building.count > 0 ? `${building.count} Construídos` : 'Não construído'}
+                        {building.id === 'hut' && ` · Nível ${building.level || 1} (${2 + ((building.level || 1) - 1) * 2} leitos/cabana)`}
                       </p>
                     </div>
                   </div>
@@ -227,10 +231,62 @@ export const BuildingPanel: React.FC<BuildingPanelProps> = ({
                     <span>
                       {inProgress
                         ? `Construindo... (${building.constructionTurnsLeft} turno(s))`
-                        : 'Iniciar Construção'}
+                        : building.count > 0 ? 'Construir Mais 1 Cabana' : 'Iniciar Construção'}
                     </span>
                   </button>
                 )}
+
+                {/* Hut Upgrade Button (+2 vagas a cada novo nível da cabana) */}
+                {building.id === 'hut' && unlocked && (() => {
+                  const currentLvl = Math.max(1, building.level || 1);
+                  const nextLvl = currentLvl + 1;
+                  const upCost = getBuildingUpgradeCost(building);
+                  const canAffordUp =
+                    (!upCost.wood || resources.wood >= upCost.wood) &&
+                    (!upCost.stone || resources.stone >= upCost.stone);
+
+                  return (
+                    <div className="flex flex-col gap-1.5 mt-1 pt-2 border-t border-stone-200 bg-[#FDF9F0] p-2 rounded-lg border">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-stone-800 flex items-center gap-1">
+                          <span>🛖</span>
+                          <span>Evoluir Cabanas:</span>
+                        </span>
+                        <span className="text-[10px] font-mono text-amber-900 font-extrabold bg-[#FAF3E7] px-1.5 py-0.5 rounded border border-amber-300">
+                          Nível {nextLvl} (+2 vagas/leitos)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-stone-600 font-semibold">
+                        <span>Custo:</span>
+                        {upCost.wood && (
+                          <span className={resources.wood >= upCost.wood ? 'text-stone-800 font-bold' : 'text-red-600 font-bold'}>
+                            🪵 {upCost.wood}
+                          </span>
+                        )}
+                        {upCost.stone ? (
+                          <span className={resources.stone >= upCost.stone ? 'text-stone-800 font-bold' : 'text-red-600 font-bold'}>
+                            𫭢 {upCost.stone}
+                          </span>
+                        ) : null}
+                      </div>
+                      <button
+                        onClick={() => {
+                          audio.playBuild();
+                          onUpgradeBuilding?.(building.id);
+                        }}
+                        disabled={!canAffordUp}
+                        className={`w-full py-1.5 px-2.5 rounded-lg border-2 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                          canAffordUp
+                            ? 'bg-amber-400 border-[#33261D] text-stone-950 hover:bg-amber-300 shadow-xs'
+                            : 'bg-stone-200 border-stone-300 text-stone-400 cursor-not-allowed'
+                        }`}
+                      >
+                        <ArrowUpCircle size={13} />
+                        <span>Subir Cabana p/ Nível {nextLvl} (+2 Vagas)</span>
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 {!unlocked && (
                   <div className="text-[11px] text-stone-500 italic flex items-center gap-1">

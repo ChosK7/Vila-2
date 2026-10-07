@@ -2,6 +2,7 @@ import React from 'react';
 import { GameState } from '../types/game';
 import { ChevronDown, ChevronUp, Shield, Users, AlertTriangle, Sparkles, Heart } from 'lucide-react';
 import { audio } from '../utils/audio';
+import { calculateHousingCapacity } from '../game/BuildingSystem';
 
 interface ExpandableResourceBarProps {
   gameState: GameState;
@@ -26,11 +27,8 @@ export const ExpandableResourceBar: React.FC<ExpandableResourceBarProps> = ({
 }) => {
   const { resources, maxStorage, villagers, buildings } = gameState;
 
-  // Calculate housing capacity
-  const housingCap = Object.values(buildings).reduce(
-    (acc, b) => acc + (b.housingCap || 0) * b.count,
-    0
-  );
+  // Calculate housing capacity: 2 base por cabana + 2 por novo nível
+  const housingCap = calculateHousingCapacity(buildings);
 
   // Village Defense score
   const guardsCount = villagers.filter((v) => v.job === 'guard').length;
@@ -43,41 +41,43 @@ export const ExpandableResourceBar: React.FC<ExpandableResourceBarProps> = ({
     : 80;
 
   return (
-    <div className="relative">
-      {/* Compact Trigger Button (Shown in the top header) */}
+    <div className="relative w-full">
+      {/* Symmetrical Trigger Button (Centered in the top header) */}
       <button
         onClick={() => {
           audio.playWood();
           onToggleExpand();
         }}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 border-[#33261D] text-xs font-bold transition-all shadow-xs cursor-pointer ${
+        className={`w-full flex items-center justify-between sm:justify-center gap-2 sm:gap-3 px-3 py-1 rounded-xl border-2 border-[#33261D] text-xs font-bold transition-all shadow-xs cursor-pointer ${
           isExpanded
             ? 'bg-[#33261D] text-[#FFFBF5]'
             : 'bg-[#FFFDF9]/95 text-stone-900 hover:bg-[#F5EAD9]'
         }`}
         title="Clique para ver todos os recursos (Argila, Conhecimento, Defesa, Armazenamento)"
       >
-        <span className="flex items-center gap-1">
-          <span>🌾</span>
-          <strong className="font-mono">{Math.floor(resources.food)}</strong>
-        </span>
-        <span className="text-stone-300">·</span>
-        <span className="flex items-center gap-1">
-          <span>🪵</span>
-          <strong className="font-mono">{Math.floor(resources.wood)}</strong>
-        </span>
-        <span className="text-stone-300">·</span>
-        <span className="flex items-center gap-1">
-          <span>🪨</span>
-          <strong className="font-mono">{Math.floor(resources.stone)}</strong>
-        </span>
-        <span className="text-stone-300">·</span>
-        <span className="flex items-center gap-1">
-          <Users size={12} className="text-amber-800" />
-          <strong className="font-mono">{villagers.length}/{housingCap}</strong>
-        </span>
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <span className="flex items-center gap-1">
+            <span>🌾</span>
+            <strong className="font-mono">{Math.floor(resources.food)}</strong>
+          </span>
+          <span className="text-stone-300">·</span>
+          <span className="flex items-center gap-1">
+            <span>🪵</span>
+            <strong className="font-mono">{Math.floor(resources.wood)}</strong>
+          </span>
+          <span className="text-stone-300">·</span>
+          <span className="flex items-center gap-1">
+            <span>🪨</span>
+            <strong className="font-mono">{Math.floor(resources.stone)}</strong>
+          </span>
+          <span className="text-stone-300">·</span>
+          <span className="flex items-center gap-1">
+            <Users size={12} className="text-amber-800" />
+            <strong className="font-mono">{villagers.length}/{housingCap}</strong>
+          </span>
+        </div>
 
-        <span className="ml-1 text-[11px] font-hand font-extrabold text-[#78350F] flex items-center gap-0.5 bg-[#FAF3E7] px-1.5 py-0.5 rounded-md border border-stone-300">
+        <span className="text-[11px] font-hand font-extrabold text-[#78350F] flex items-center gap-0.5 bg-[#FAF3E7] px-1.5 py-0.5 rounded-md border border-stone-300 shrink-0">
           <span>Recursos</span>
           {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
         </span>
