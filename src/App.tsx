@@ -34,6 +34,7 @@ import {
 } from './game/BuildingSystem';
 import { advanceSimulationDay } from './game/Simulation';
 import { updateVillagerWorkStatus } from './game/ScheduleSystem';
+import { addVillageXP, getXPRequiredForLevel } from './game/ProgressionSystem';
 import {
   Edit2,
   HelpCircle,
@@ -55,6 +56,19 @@ export default function App() {
           const canonical = RANDOM_EVENTS.find((e) => e.id === parsed.activeEvent.id);
           parsed.activeEvent = canonical || null;
         }
+
+        // Migração de save antigo para o sistema de progressão da vila
+        const vLevel = typeof parsed.villageLevel === 'number' && parsed.villageLevel >= 1
+          ? parsed.villageLevel
+          : 1;
+        parsed.villageLevel = vLevel;
+        parsed.villageXP = typeof parsed.villageXP === 'number' && parsed.villageXP >= 0
+          ? parsed.villageXP
+          : 0;
+        parsed.xpToNextLevel = typeof parsed.xpToNextLevel === 'number' && parsed.xpToNextLevel > 0
+          ? parsed.xpToNextLevel
+          : getXPRequiredForLevel(vLevel);
+
         return parsed;
       }
     } catch (e) {
@@ -257,26 +271,23 @@ export default function App() {
 
       audio.playFanfare();
 
-      let newXP = (prev.villageXP || 0) + mission.rewardXP;
-      let newLevel = prev.villageLevel || 1;
-      let nextXP = prev.xpToNextLevel || 100;
+      // Cálculo centralizado de progressão via ProgressionSystem
+      const xpResult = addVillageXP(prev.villageLevel || 1, prev.villageXP || 0, mission.rewardXP);
+      const newLevel = xpResult.level;
+      const newXP = xpResult.xp;
+      const nextXP = xpResult.xpToNextLevel;
+
       let newUnlockedJobs = [...(prev.unlockedJobs || ['farmer', 'lumberjack', 'quarryman'])];
 
-      // Check level up
-      if (newXP >= nextXP) {
-        newLevel += 1;
-        newXP = newXP - nextXP;
-        nextXP = Math.round(nextXP * 1.6);
-        // Level up unlocks jobs!
-        if (newLevel >= 2 && !newUnlockedJobs.includes('potter')) {
-          newUnlockedJobs.push('potter');
-        }
-        if (newLevel >= 2 && !newUnlockedJobs.includes('elder')) {
-          newUnlockedJobs.push('elder');
-        }
-        if (newLevel >= 3 && !newUnlockedJobs.includes('guard')) {
-          newUnlockedJobs.push('guard');
-        }
+      // Desbloqueio progressivo de trabalhos conforme o nível da vila
+      if (newLevel >= 2 && !newUnlockedJobs.includes('potter')) {
+        newUnlockedJobs.push('potter');
+      }
+      if (newLevel >= 2 && !newUnlockedJobs.includes('elder')) {
+        newUnlockedJobs.push('elder');
+      }
+      if (newLevel >= 3 && !newUnlockedJobs.includes('guard')) {
+        newUnlockedJobs.push('guard');
       }
 
       if (mission.unlockJob && !newUnlockedJobs.includes(mission.unlockJob)) {
@@ -291,11 +302,16 @@ export default function App() {
         return m;
       });
 
+      const lastLevelUp = xpResult.levelsGained > 0
+        ? { oldLevel: prev.villageLevel || 1, newLevel }
+        : prev.lastLevelUp;
+
       return {
         ...prev,
         villageXP: newXP,
         villageLevel: newLevel,
         xpToNextLevel: nextXP,
+        lastLevelUp,
         unlockedJobs: newUnlockedJobs,
         resources: addKnowledgeReward(prev.resources, mission.rewardKnowledge || 0),
         dailyMissions: updatedMissions,

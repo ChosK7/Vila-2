@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { audio } from '../utils/audio';
 import { calculateHousingCapacity } from '../game/BuildingSystem';
+import { getVillageLevelConfig, MAX_VILLAGE_LEVEL } from '../game/ProgressionSystem';
 import { BuildingPanel } from './BuildingPanel';
 import { TechTreePanel } from './TechTreePanel';
 
@@ -119,6 +120,10 @@ export const TaskAssignmentBar: React.FC<TaskAssignmentBarProps> = ({
   // Housing cap: 2 base por cabana + 2 por novo nível
   const housingCap = calculateHousingCapacity(buildings);
   const canRecruit = resources.food >= 15 && villagers.length < housingCap;
+
+  // Informações do Sistema de Progressão da Vila
+  const levelConfig = getVillageLevelConfig(villageLevel);
+  const isMaxLevel = villageLevel >= MAX_VILLAGE_LEVEL;
 
   // Average Villager Health & Hunger
   const avgHealth =
@@ -304,13 +309,29 @@ export const TaskAssignmentBar: React.FC<TaskAssignmentBarProps> = ({
 
             {/* Village Level & Close button */}
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 bg-[#FAF3E7] px-2 py-0.5 rounded-lg border border-amber-300 text-[11px]">
-                <span className="text-amber-800 font-bold">Nível {villageLevel}</span>
-                <div className="w-12 h-1.5 bg-stone-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-amber-500 transition-all duration-300"
-                    style={{ width: `${Math.min(100, (villageXP / xpToNextLevel) * 100)}%` }}
-                  ></div>
+              <div
+                className="flex flex-col items-end sm:items-start bg-[#FAF3E7] px-2.5 py-1 rounded-xl border border-amber-300 text-[11px] shadow-2xs"
+                title={levelConfig.description}
+              >
+                <div className="flex items-center gap-1.5 font-bold leading-tight">
+                  <span className="text-amber-900 font-display font-black">Nível {levelConfig.level}</span>
+                  <span className="text-stone-400">·</span>
+                  <span className="text-[#78350F] font-semibold">{levelConfig.name}</span>
+                </div>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <div className="w-16 sm:w-20 h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-300"
+                      style={{
+                        width: isMaxLevel
+                          ? '100%'
+                          : `${Math.min(100, Math.max(0, (villageXP / (xpToNextLevel || 1)) * 100))}%`,
+                      }}
+                    ></div>
+                  </div>
+                  <span className="text-[10px] font-mono text-stone-600 font-bold whitespace-nowrap">
+                    {isMaxLevel ? 'NÍVEL MÁXIMO' : `${villageXP} / ${xpToNextLevel} XP`}
+                  </span>
                 </div>
               </div>
 

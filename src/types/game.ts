@@ -137,6 +137,10 @@ export interface GameState {
   villageLevel: number;
   villageXP: number;
   xpToNextLevel: number;
+  lastLevelUp?: {
+    oldLevel: number;
+    newLevel: number;
+  };
   unlockedJobs: JobType[];
   dailyMissions: DailyMission[];
   woodConsumedPerTurn: number;
