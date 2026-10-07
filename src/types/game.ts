@@ -67,6 +67,7 @@ export interface DailyMission {
   category: 'food' | 'wood' | 'stone' | 'knowledge' | 'build' | 'villagers';
   type?: MissionType;
   metric?: MissionMetric;
+  targetBuildingId?: string;
   levelMin?: number;
   levelMax?: number;
   repeatable?: boolean;

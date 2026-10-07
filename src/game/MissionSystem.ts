@@ -11,6 +11,7 @@ export interface MissionTemplate {
   id: string;
   type: MissionType;
   metric: MissionMetric;
+  targetBuildingId?: string;
   title: string;
   description: string;
   target: number;
@@ -125,8 +126,9 @@ export const MISSION_TEMPLATES: MissionTemplate[] = [
     id: 'bld_huts_2',
     type: 'building',
     metric: 'building_count',
+    targetBuildingId: 'hut',
     title: 'Assentamento de Cabanas',
-    description: 'Tenha pelo menos 2 edificações concluídas para acolher famílias nômades.',
+    description: 'Tenha pelo menos 2 cabanas concluídas para acolher famílias nômades.',
     target: 2,
     rewardXP: 45,
     rewardResources: { wood: 10 },
@@ -137,9 +139,10 @@ export const MISSION_TEMPLATES: MissionTemplate[] = [
     id: 'bld_granary',
     type: 'building',
     metric: 'building_count',
+    targetBuildingId: 'granary',
     title: 'Silo e Celeiro da Tribo',
-    description: 'Construa pelo menos 3 estruturas na vila protegendo a subsistência contra o tempo.',
-    target: 3,
+    description: 'Construa um celeiro na vila protegendo a subsistência contra o tempo.',
+    target: 1,
     rewardXP: 70,
     rewardKnowledge: 15,
     levelMin: 2,
@@ -149,9 +152,10 @@ export const MISSION_TEMPLATES: MissionTemplate[] = [
     id: 'bld_well',
     type: 'building',
     metric: 'building_count',
+    targetBuildingId: 'village_well',
     title: 'Obras de Sustento Coletivo',
-    description: 'Mantenha pelo menos 4 edificações na aldeia erguidas com esforço comunitário.',
-    target: 4,
+    description: 'Construa um poço de água fresca na aldeia para o sustento comunitário.',
+    target: 1,
     rewardXP: 90,
     rewardKnowledge: 20,
     levelMin: 3,
@@ -322,7 +326,11 @@ export function getAvailableMissionTemplates(villageLevel: number): MissionTempl
 /**
  * Converte um MissionTemplate em uma DailyMission ativa com progresso inicial computado.
  */
-function templateToDailyMission(tpl: MissionTemplate, state: GameState): DailyMission {
+function templateToDailyMission(
+  tpl: MissionTemplate,
+  state: GameState,
+  index: number
+): DailyMission {
   // Gera texto de recompensa legível
   const rewardParts: string[] = [`+${tpl.rewardXP} XP`];
   if (tpl.rewardKnowledge && tpl.rewardKnowledge > 0) {
@@ -348,12 +356,13 @@ function templateToDailyMission(tpl: MissionTemplate, state: GameState): DailyMi
   else if (tpl.metric === 'food') category = 'food';
 
   const mission: DailyMission = {
-    id: `${tpl.id}-${state.turn}-${Math.floor(Math.random() * 1000)}`,
+    id: `${tpl.id}-${state.turn}-${state.villageLevel}-${index}`,
     title: tpl.title,
     description: tpl.description,
     category,
     type: tpl.type,
     metric: tpl.metric,
+    targetBuildingId: tpl.targetBuildingId,
     levelMin: tpl.levelMin,
     levelMax: tpl.levelMax,
     repeatable: tpl.repeatable,
@@ -400,12 +409,14 @@ export function calculateMissionProgress(mission: DailyMission, state: GameState
       value = state.resources?.knowledge ?? 0;
       break;
     case 'building_count': {
-      // Total de edifícios construídos com count > 0
-      const totalBuildings = Object.values(state.buildings ?? {}).reduce(
-        (sum, b) => sum + (b.count > 0 ? b.count : 0),
-        0
-      );
-      value = totalBuildings;
+      if (norm.targetBuildingId) {
+        value = state.buildings?.[norm.targetBuildingId]?.count ?? 0;
+      } else {
+        value = Object.values(state.buildings ?? {}).reduce(
+          (sum, b) => sum + Math.max(0, b.count || 0),
+          0
+        );
+      }
       break;
     }
     case 'population':
@@ -432,10 +443,15 @@ export function calculateMissionProgress(mission: DailyMission, state: GameState
       else if (mission.category === 'knowledge') value = state.resources?.knowledge ?? 0;
       else if (mission.category === 'villagers') value = state.villagers?.length ?? 0;
       else if (mission.category === 'build') {
-        value = Object.values(state.buildings ?? {}).reduce(
-          (sum, b) => sum + (b.count > 0 ? b.count : 0),
-          0
-        );
+        if (norm.targetBuildingId) {
+          const building = state.buildings?.[norm.targetBuildingId];
+          value = building?.count ?? 0;
+        } else {
+          value = Object.values(state.buildings ?? {}).reduce(
+            (sum, b) => sum + (b.count > 0 ? b.count : 0),
+            0
+          );
+        }
       }
       break;
     }
@@ -479,6 +495,7 @@ export function normalizeMission(m: DailyMission): DailyMission {
     ...m,
     type: inferredType,
     metric: inferredMetric,
+    targetBuildingId: m.targetBuildingId,
     levelMin: m.levelMin ?? 1,
   };
 }
@@ -511,11 +528,42 @@ export function updateMissionProgress(
 }
 
 /**
+ * Calcula uma pontuação pseudo-aleatória porém determinística para ordenação de templates.
+ * Garante estabilidade de interface, ausência de flicker e total reprodutibilidade.
+ */
+export function deterministicScore(
+  templateId: string,
+  turn: number,
+  villageLevel: number
+): number {
+  let score = turn * 31 + villageLevel * 17;
+  for (let i = 0; i < templateId.length; i++) {
+    score += templateId.charCodeAt(i) * (i + 1);
+  }
+  return score;
+}
+
+/**
+ * Helper de conveniência que recebe o GameState atual,
+ * recalcula o progresso de todas as missões ativas e retorna um novo GameState atualizado.
+ */
+export function refreshMissions(state: GameState): GameState {
+  return {
+    ...state,
+    dailyMissions: updateMissionProgress(
+      state.dailyMissions || [],
+      state
+    ),
+  };
+}
+
+/**
  * Gera um novo conjunto de missões ativas (até `count`, padrão 3).
  * - Evita IDs duplicados
  * - Prioriza templates adequados ao villageLevel
  * - Utiliza templates de diferentes categorias/métricas
  * - Calcula o progresso inicial com base no estado atual
+ * - Totalmente determinístico sem Math.random()
  */
 export function generateMissionSet(
   state: GameState,
@@ -544,17 +592,18 @@ export function generateMissionSet(
     candidateTemplates = availableTemplates;
   }
 
-  // Embaralha de maneira determinística com base no turn e nível para evitar flicker
-  const shuffled = [...candidateTemplates].sort((a, b) => {
-    // Dá prioridade para templates que cobrem diferentes tipos
-    return Math.random() - 0.5;
-  });
+  // Ordenação determinística com base no turn e nível
+  const ordered = [...candidateTemplates].sort(
+    (a, b) =>
+      deterministicScore(a.id, state.turn, villageLevel) -
+      deterministicScore(b.id, state.turn, villageLevel)
+  );
 
   const selectedTemplates: MissionTemplate[] = [];
   const chosenTypes = new Set<string>();
 
   // Primeira passagem: seleciona tipos variados
-  for (const tpl of shuffled) {
+  for (const tpl of ordered) {
     if (selectedTemplates.length >= count) break;
     if (!chosenTypes.has(tpl.type)) {
       selectedTemplates.push(tpl);
@@ -563,14 +612,16 @@ export function generateMissionSet(
   }
 
   // Segunda passagem: preenche caso ainda falte preencher até `count`
-  for (const tpl of shuffled) {
+  for (const tpl of ordered) {
     if (selectedTemplates.length >= count) break;
     if (!selectedTemplates.some((s) => s.id === tpl.id)) {
       selectedTemplates.push(tpl);
     }
   }
 
-  return selectedTemplates.map((tpl) => templateToDailyMission(tpl, state));
+  return selectedTemplates.map(
+    (tpl, index) => templateToDailyMission(tpl, state, index)
+  );
 }
 
 /**
@@ -646,7 +697,7 @@ export function applyMissionReward(
       ? { oldLevel: currentLevel, newLevel: xpResult.level }
       : state.lastLevelUp;
 
-  return {
+  let finalState: GameState = {
     ...state,
     villageLevel: xpResult.level,
     villageXP: xpResult.xp,
@@ -656,4 +707,10 @@ export function applyMissionReward(
     unlockedJobs: updatedUnlockedJobs,
     dailyMissions: updatedMissions,
   };
+
+  if (!allClaimed) {
+    finalState = refreshMissions(finalState);
+  }
+
+  return finalState;
 }

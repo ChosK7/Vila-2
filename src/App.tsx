@@ -39,6 +39,7 @@ import {
   applyMissionReward,
   updateMissionProgress,
   generateMissionSet,
+  refreshMissions,
 } from './game/MissionSystem';
 import {
   Edit2,
@@ -246,11 +247,11 @@ export default function App() {
       const allVillagers = [...prev.villagers, newVil];
       const finalizedVillagers = finalizeRecruitedVillagers(allVillagers, prev, rates);
 
-      return {
+      return refreshMissions({
         ...prev,
         resources: deductVillagerRecruitmentCost(prev.resources),
         villagers: finalizedVillagers,
-      };
+      });
     });
   };
 
@@ -303,11 +304,11 @@ export default function App() {
         buildingId
       );
       if (!success) return prev;
-      return {
+      return refreshMissions({
         ...prev,
         resources: updatedResources,
         buildings: updatedBuildings,
-      };
+      });
     });
   };
 
@@ -317,11 +318,11 @@ export default function App() {
       const result = upgradeBuildingLevel(prev.buildings, prev.resources, buildingId);
       if (!result.success) return prev;
       audio.playBuild();
-      return {
+      return refreshMissions({
         ...prev,
         resources: result.updatedResources,
         buildings: result.updatedBuildings,
-      };
+      });
     });
   };
 
@@ -331,14 +332,14 @@ export default function App() {
       const tech = prev.technologies[techId];
       if (!tech || tech.unlocked || !canAffordTechResearch(prev.resources.knowledge, tech.cost)) return prev;
 
-      return {
+      return refreshMissions({
         ...prev,
         resources: deductTechResearchCost(prev.resources, tech.cost),
         technologies: {
           ...prev.technologies,
           [techId]: { ...tech, unlocked: true },
         },
-      };
+      });
     });
   };
 
@@ -353,11 +354,13 @@ export default function App() {
     if (targetOption && typeof targetOption.action === 'function') {
       try {
         const updates = targetOption.action(gameState);
-        setGameState((prev) => ({
-          ...prev,
-          ...updates,
-          activeEvent: null,
-        }));
+        setGameState((prev) =>
+          refreshMissions({
+            ...prev,
+            ...updates,
+            activeEvent: null,
+          })
+        );
         return;
       } catch (err) {
         console.error('Error executing event action:', err);
@@ -386,10 +389,12 @@ export default function App() {
 
   // Real-time small deposit from 3D villager carrying goods to storehouse
   const handleVillagerGathers = (resource: 'food' | 'wood' | 'stone' | 'clay', amount: number) => {
-    setGameState((prev) => ({
-      ...prev,
-      resources: depositGatheredResource(prev.resources, prev.maxStorage, resource, amount),
-    }));
+    setGameState((prev) =>
+      refreshMissions({
+        ...prev,
+        resources: depositGatheredResource(prev.resources, prev.maxStorage, resource, amount),
+      })
+    );
   };
 
   // Save edited player name
