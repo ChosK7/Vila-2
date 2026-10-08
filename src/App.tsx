@@ -84,6 +84,21 @@ export default function App() {
           parsed.xpToNextLevel = 0;
         }
 
+        // Migração e atualização segura das construções (sawmill, stoneworks, cooking_pit)
+        parsed.buildings = {
+          ...INITIAL_BUILDINGS,
+          ...parsed.buildings,
+          cooking_pit: {
+            ...INITIAL_BUILDINGS.cooking_pit,
+            ...(parsed.buildings?.cooking_pit || {}),
+            name: INITIAL_BUILDINGS.cooking_pit.name,
+            description: INITIAL_BUILDINGS.cooking_pit.description,
+            benefitsDescription: INITIAL_BUILDINGS.cooking_pit.benefitsDescription,
+          },
+          sawmill: parsed.buildings?.sawmill || INITIAL_BUILDINGS.sawmill,
+          stoneworks: parsed.buildings?.stoneworks || INITIAL_BUILDINGS.stoneworks,
+        };
+
         // Migração e atualização segura das missões
         if (Array.isArray(parsed.dailyMissions) && parsed.dailyMissions.length > 0) {
           parsed.dailyMissions = updateMissionProgress(parsed.dailyMissions, parsed);

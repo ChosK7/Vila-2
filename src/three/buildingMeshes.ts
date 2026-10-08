@@ -590,3 +590,225 @@ export function createGuardPostMesh(): THREE.Group {
   return group;
 }
 
+// 8. Serraria de Troncos (Sawmill)
+export function createSawmillMesh(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'sawmill';
+
+  // 4 Postes de madeira rústica sustentando o telheiro
+  const postPositions = [
+    [-0.9, -0.9],
+    [0.9, -0.9],
+    [-0.9, 0.9],
+    [0.9, 0.9],
+  ];
+  postPositions.forEach(([x, z]) => {
+    const postGeo = new THREE.CylinderGeometry(0.07, 0.08, 1.6, 6);
+    const post = new THREE.Mesh(postGeo, darkWoodMat);
+    post.position.set(x, 0.8, z);
+    post.castShadow = true;
+    group.add(post);
+  });
+
+  // Teto rústico inclinado de colmo / tábuas
+  const roofGeo = new THREE.ConeGeometry(1.6, 0.55, 4);
+  const roof = new THREE.Mesh(roofGeo, thatchMat);
+  roof.position.y = 1.85;
+  roof.rotation.y = Math.PI / 4;
+  roof.castShadow = true;
+  group.add(roof);
+
+  // Cavalete / Bancada de corte de troncos
+  const benchGeo = new THREE.BoxGeometry(1.2, 0.45, 0.55);
+  const bench = new THREE.Mesh(benchGeo, woodMat);
+  bench.position.set(0, 0.35, 0);
+  bench.castShadow = true;
+  group.add(bench);
+
+  // Tronco repousando sobre a bancada
+  const activeLogGeo = new THREE.CylinderGeometry(0.12, 0.13, 1.3, 8);
+  const activeLog = new THREE.Mesh(activeLogGeo, darkWoodMat);
+  activeLog.rotation.z = Math.PI / 2;
+  activeLog.position.set(0, 0.65, 0);
+  group.add(activeLog);
+
+  // Pilha de toras cortadas ao lado da serraria
+  for (let i = 0; i < 4; i++) {
+    const logGeo = new THREE.CylinderGeometry(0.1, 0.1, 1.0, 6);
+    const log = new THREE.Mesh(logGeo, darkWoodMat);
+    log.rotation.z = Math.PI / 2;
+    const layer = i < 3 ? 0 : 1;
+    const offset = i < 3 ? (i - 1) * 0.22 : 0;
+    log.position.set(offset + 1.2, 0.12 + layer * 0.18, 0.4);
+    group.add(log);
+  }
+
+  return group;
+}
+
+// 9. Oficina de Cantaria (Stoneworks)
+export function createStoneworksMesh(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'stoneworks';
+
+  // Base com lajes de pedra assentadas no chão
+  const floorGeo = new THREE.BoxGeometry(2.4, 0.08, 2.0);
+  const floor = new THREE.Mesh(floorGeo, darkStoneMat);
+  floor.position.y = 0.04;
+  floor.receiveShadow = true;
+  group.add(floor);
+
+  // Bancada pesada de cantaria
+  const tableGeo = new THREE.BoxGeometry(1.1, 0.5, 0.6);
+  const table = new THREE.Mesh(tableGeo, stoneMat);
+  table.position.set(0, 0.3, 0);
+  table.castShadow = true;
+  group.add(table);
+
+  // Bloco de pedra sendo trabalhado na bancada
+  const blockGeo = new THREE.BoxGeometry(0.45, 0.3, 0.35);
+  const block = new THREE.Mesh(blockGeo, stoneMat);
+  block.position.set(0, 0.65, 0);
+  group.add(block);
+
+  // Cinzel / ferramenta de talha sobre a mesa
+  const chiselGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.25, 4);
+  const chisel = new THREE.Mesh(chiselGeo, darkStoneMat);
+  chisel.rotation.x = Math.PI / 2;
+  chisel.position.set(0.35, 0.56, 0.1);
+  group.add(chisel);
+
+  // Pilha de blocos de cantaria talhados ao lado
+  for (let i = 0; i < 5; i++) {
+    const sGeo = new THREE.BoxGeometry(0.35, 0.22, 0.35);
+    const sBlock = new THREE.Mesh(sGeo, darkStoneMat);
+    const x = -0.9 + (i % 2) * 0.38;
+    const y = i < 4 ? 0.15 : 0.35;
+    const z = -0.4 + Math.floor(i / 2) * 0.38;
+    sBlock.position.set(x, y, z);
+    sBlock.castShadow = true;
+    group.add(sBlock);
+  }
+
+  // Toldo leve sustentado por 2 postes de madeira
+  const pole1 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.6, 6), darkWoodMat);
+  pole1.position.set(-0.8, 0.8, -0.8);
+  group.add(pole1);
+  const pole2 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.6, 6), darkWoodMat);
+  pole2.position.set(0.8, 0.8, -0.8);
+  group.add(pole2);
+
+  const awningGeo = new THREE.PlaneGeometry(1.9, 1.3);
+  const awningMat = new THREE.MeshStandardMaterial({ color: 0xd4a373, side: THREE.DoubleSide });
+  const awning = new THREE.Mesh(awningGeo, awningMat);
+  awning.rotation.x = Math.PI / 3;
+  awning.position.set(0, 1.5, -0.4);
+  group.add(awning);
+
+  return group;
+}
+
+// 10. Cozinha & Refeitório Comunitário (Cooking Pit / Refectory)
+export function createCookingPitMesh(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'cooking_pit';
+
+  // Base circular de pedras secas
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    const stoneGeo = new THREE.DodecahedronGeometry(0.16);
+    const stone = new THREE.Mesh(stoneGeo, darkStoneMat);
+    stone.position.set(Math.cos(angle) * 0.55, 0.1, Math.sin(angle) * 0.55);
+    stone.castShadow = true;
+    group.add(stone);
+  }
+
+  // Tripé de madeira rústica sobre a fogueira
+  for (let i = 0; i < 3; i++) {
+    const angle = (i / 3) * Math.PI * 2;
+    const legGeo = new THREE.CylinderGeometry(0.03, 0.04, 1.3, 6);
+    const leg = new THREE.Mesh(legGeo, darkWoodMat);
+    leg.position.set(Math.cos(angle) * 0.35, 0.6, Math.sin(angle) * 0.35);
+    leg.rotation.z = -Math.cos(angle) * 0.3;
+    leg.rotation.x = Math.sin(angle) * 0.3;
+    group.add(leg);
+  }
+
+  // Caldeirão de cozimento pendurado no tripé
+  const cauldronGeo = new THREE.SphereGeometry(0.25, 8, 8, 0, Math.PI * 2, 0, Math.PI * 0.8);
+  const cauldronMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.6 });
+  const cauldron = new THREE.Mesh(cauldronGeo, cauldronMat);
+  cauldron.rotation.x = Math.PI;
+  cauldron.position.y = 0.65;
+  group.add(cauldron);
+
+  // Chama suave sob o caldeirão
+  const flameGeo = new THREE.ConeGeometry(0.14, 0.28, 6);
+  const flameMat = new THREE.MeshBasicMaterial({ color: 0xf97316 });
+  const flame = new THREE.Mesh(flameGeo, flameMat);
+  flame.position.y = 0.18;
+  group.add(flame);
+
+  // Bancos de madeira comunitários ao redor para o refeitório
+  for (let i = 0; i < 3; i++) {
+    const angle = (i / 3) * Math.PI * 2 + Math.PI / 6;
+    const benchGeo = new THREE.BoxGeometry(0.8, 0.18, 0.3);
+    const bench = new THREE.Mesh(benchGeo, woodMat);
+    bench.position.set(Math.cos(angle) * 1.25, 0.15, Math.sin(angle) * 1.25);
+    bench.rotation.y = -angle + Math.PI / 2;
+    group.add(bench);
+  }
+
+  // Cobertura protetora rústica
+  const canopyPoleGeo = new THREE.CylinderGeometry(0.06, 0.06, 1.8, 6);
+  const canopyPole = new THREE.Mesh(canopyPoleGeo, darkWoodMat);
+  canopyPole.position.set(0, 0.9, -1.2);
+  group.add(canopyPole);
+
+  const canopyGeo = new THREE.ConeGeometry(1.6, 0.45, 6);
+  const canopy = new THREE.Mesh(canopyGeo, thatchMat);
+  canopy.position.set(0, 1.8, 0);
+  group.add(canopy);
+
+  return group;
+}
+
+// 11. Olaria & Forno de Argila (Pottery Kiln)
+export function createPotteryKilnMesh(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'pottery_kiln';
+
+  // Forno abobadado de argila/adobe com chaminé
+  const domeGeo = new THREE.SphereGeometry(0.85, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.65);
+  const domeMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.9 });
+  const dome = new THREE.Mesh(domeGeo, domeMat);
+  dome.position.y = 0.2;
+  dome.castShadow = true;
+  group.add(dome);
+
+  // Chaminé de ventilação no topo
+  const chimneyGeo = new THREE.CylinderGeometry(0.14, 0.18, 0.6, 8);
+  const chimney = new THREE.Mesh(chimneyGeo, mudbrickMat);
+  chimney.position.y = 1.0;
+  group.add(chimney);
+
+  // Boca do forno com brasa interior
+  const doorGeo = new THREE.CylinderGeometry(0.24, 0.24, 0.2, 8, 1, false, 0, Math.PI);
+  const doorMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+  const door = new THREE.Mesh(doorGeo, doorMat);
+  door.rotation.z = Math.PI / 2;
+  door.position.set(0, 0.25, 0.75);
+  group.add(door);
+
+  // Vasos de argila assados descansando na bancada
+  for (let i = 0; i < 3; i++) {
+    const potGeo = new THREE.CylinderGeometry(0.12, 0.08, 0.26, 8);
+    const potMat = new THREE.MeshStandardMaterial({ color: 0xc2410c, roughness: 0.7 });
+    const pot = new THREE.Mesh(potGeo, potMat);
+    pot.position.set(1.0, 0.13 + i * 0.02, -0.4 + i * 0.35);
+    group.add(pot);
+  }
+
+  return group;
+}
+

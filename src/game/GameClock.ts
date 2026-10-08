@@ -111,7 +111,8 @@ export function processGameTimeTick(
   let foodDeltaConsumed = 0;
 
   if (crossedAnyMeal) {
-    const mealResult = processMealConsumption(prev.resources.food, prev.villagers);
+    const hasCookingPit = (prev.buildings.cooking_pit?.count || 0) > 0;
+    const mealResult = processMealConsumption(prev.resources.food, prev.villagers, hasCookingPit);
     foodDeltaConsumed = prev.resources.food - mealResult.updatedFood;
     updatedFood = mealResult.updatedFood;
     updatedVillagers = mealResult.updatedVillagers;

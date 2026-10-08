@@ -7,13 +7,17 @@ import {
   createBuilderSiteMesh,
   createCampfireMesh,
   createClayPitMesh,
+  createCookingPitMesh,
   createElderDeskMesh,
   createGranaryMesh,
   createGuardPostMesh,
   createHutMesh,
   createLonghouseMesh,
+  createPotteryKilnMesh,
   createRockQuarryMesh,
+  createSawmillMesh,
   createStoneDwellingMesh,
+  createStoneworksMesh,
   createTreeMesh,
   createWellMesh,
   createWheatPatchMesh,
@@ -191,6 +195,10 @@ export const DEFAULT_FACILITY_CONFIGS: Record<
   shelter_4: { name: 'Cabana 4', icon: '🛖', defaultX: 2.8, defaultZ: 2.0, description: 'Quarta moradia da aldeia (2 vagas base, +2 por nível).' },
   granary: { name: 'Celeiro de Grãos', icon: '🌾', defaultX: 0, defaultZ: 4.0, description: 'Estrutura elevada sobre estacas para estocagem de comida.' },
   village_well: { name: 'Poço Comunitário', icon: '💧', defaultX: 0, defaultZ: -3.8, description: 'Poço de pedra que fornece água potável e irriga os campos.' },
+  cooking_pit: { name: 'Cozinha & Refeitório Comunitário', icon: '🍲', defaultX: -1.2, defaultZ: 1.5, description: 'Refeitório onde refeições coletivas garantem vitalidade e ânimo.' },
+  sawmill: { name: 'Serraria de Troncos', icon: '🪓', defaultX: -3.8, defaultZ: -4.5, description: 'Serraria artesanal para corte e armazenamento de madeira.' },
+  stoneworks: { name: 'Oficina de Cantaria', icon: '🔨', defaultX: 4.2, defaultZ: -3.5, description: 'Oficina onde blocos de pedra são talhados e preparados.' },
+  pottery_kiln: { name: 'Olaria & Forno de Argila', icon: '🏺', defaultX: 4.8, defaultZ: 2.5, description: 'Forno e estaleiro de secagem e queima de cerâmica de argila.' },
   longhouse: { name: 'Casa Comunitária Longa', icon: '🏛️', defaultX: 0, defaultZ: -1.0, description: 'Grande salão comunal da Idade do Bronze.' },
   ziggurat: { name: 'O Grande Zigurate', icon: '👑', defaultX: 0, defaultZ: -14.0, description: 'Monumento monumental ancestral e triunfo da civilização.' },
 };
@@ -395,8 +403,21 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     gameStatePausedRef.current = gameState.isTimePaused ?? false;
   }, [gameState.isTimePaused]);
 
-  // Resource nodes positions dynamically linked to facility positions
+  // Synchronized gameStateRef to avoid stale state in Three.js animation/render loop
+  const gameStateRef = useRef(gameState);
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
+
+  // Resource nodes positions dynamically linked to facility positions and built structures
   const hasGranary = (gameState.buildings.granary?.count || 0) > 0;
+  const hasCookingPit = (gameState.buildings.cooking_pit?.count || 0) > 0;
+  const hasSawmill = (gameState.buildings.sawmill?.count || 0) > 0;
+  const hasStoneworks = (gameState.buildings.stoneworks?.count || 0) > 0;
+  const hasPotteryKiln = (gameState.buildings.pottery_kiln?.count || 0) > 0;
+
+  const defaultMaterialPos = { x: 1.8, z: 0.8 };
+
   const RESOURCE_NODES = useMemo(() => ({
     wheat: getNodePos('wheat', { x: -6.5, z: 4.0 }),
     wood: getNodePos('wood', { x: -6.0, z: -5.5 }),
@@ -405,13 +426,42 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     foodStorage: hasGranary
       ? getNodePos('granary', { x: 0, z: 4.0 })
       : getNodePos('campfire', { x: 0, z: 1.2 }),
-    materialStorage: getNodePos('campfire', { x: 1.8, z: 0.8 }),
+    mealArea: hasCookingPit
+      ? getNodePos('cooking_pit', { x: -1.2, z: 1.5 })
+      : getNodePos('campfire', { x: 0, z: -0.8 }),
+    woodStorage: hasSawmill
+      ? getNodePos('sawmill', { x: -3.8, z: -4.5 })
+      : getNodePos('campfire', defaultMaterialPos),
+    stoneStorage: hasStoneworks
+      ? getNodePos('stoneworks', { x: 4.2, z: -3.5 })
+      : getNodePos('campfire', defaultMaterialPos),
+    clayStorage: hasPotteryKiln
+      ? getNodePos('pottery_kiln', { x: 4.8, z: 2.5 })
+      : getNodePos('campfire', defaultMaterialPos),
+    materialStorage: getNodePos('campfire', defaultMaterialPos),
     storage: getNodePos('campfire', { x: 0, z: 1.2 }),
     campfire: getNodePos('campfire', { x: 0, z: -0.8 }),
     buildersite: getNodePos('buildersite', { x: 3.0, z: 0 }),
     elderDesk: getNodePos('elderDesk', { x: -2.2, z: -2.8 }),
     guardPost: getNodePos('guardPost', { x: 5.5, z: 5.0 }),
-  }), [facilityPositions, gameState.buildings.granary?.count, hasGranary]);
+  }), [
+    facilityPositions,
+    gameState.buildings.granary?.count,
+    gameState.buildings.cooking_pit?.count,
+    gameState.buildings.sawmill?.count,
+    gameState.buildings.stoneworks?.count,
+    gameState.buildings.pottery_kiln?.count,
+    hasGranary,
+    hasCookingPit,
+    hasSawmill,
+    hasStoneworks,
+    hasPotteryKiln,
+  ]);
+
+  const resourceNodesRef = useRef(RESOURCE_NODES);
+  useEffect(() => {
+    resourceNodesRef.current = RESOURCE_NODES;
+  }, [RESOURCE_NODES]);
 
   // Synchronize 3D facility groups whenever facilityPositions updates
   useEffect(() => {

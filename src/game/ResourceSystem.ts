@@ -38,6 +38,9 @@ export function calculateProductionRates(
   const longhouseBonus = (buildings.longhouse?.count || 0) > 0 ? 1 : 0;
   const schoolBonus = (buildings.scribal_school?.count || 0) > 0 ? 2 : 1;
   const tabletsBonus = technologies.clay_tablets?.unlocked ? 1 : 0;
+  const sawmillBonus = (buildings.sawmill?.count || 0) > 0 ? 0.15 : 0;
+  const stoneworksBonus = (buildings.stoneworks?.count || 0) > 0 ? 0.15 : 0;
+  const kilnBonus = (buildings.pottery_kiln?.count || 0) > 0 ? 0.50 : 0;
 
   let seasonFarmMultiplier = 1;
   if (season === 'Primavera') seasonFarmMultiplier = 1.25;
@@ -59,13 +62,13 @@ export function calculateProductionRates(
       foodProduced += base * (1 + sicklesBonus + wellBonus) * seasonFarmMultiplier * traitMult * moraleMult;
     } else if (v.job === 'lumberjack') {
       const base = 5 + longhouseBonus;
-      woodProduced += base * traitMult * moraleMult;
+      woodProduced += base * (1 + sawmillBonus) * traitMult * moraleMult;
     } else if (v.job === 'quarryman') {
       const base = 4 + longhouseBonus;
-      stoneProduced += base * traitMult * moraleMult;
+      stoneProduced += base * (1 + stoneworksBonus) * traitMult * moraleMult;
     } else if (v.job === 'potter') {
       const base = 4 + longhouseBonus;
-      clayProduced += base * traitMult * moraleMult;
+      clayProduced += base * (1 + kilnBonus) * traitMult * moraleMult;
     } else if (v.job === 'elder') {
       const base = 3 + longhouseBonus;
       knowledgeProduced += base * (1 + tabletsBonus) * schoolBonus * traitMult * moraleMult;
@@ -102,10 +105,12 @@ export function calculateMealFoodCost(villagerCount: number): number {
 
 /**
  * Aplica o processamento de uma refeição coletiva, consumindo comida e ajustando saúde e moral.
+ * Se a aldeia possui Cozinha & Refeitório Comunitário (cooking_pit), concede +5 saúde e +5 moral extras por refeição bem-sucedida.
  */
 export function processMealConsumption(
   currentFood: number,
-  villagers: Villager[]
+  villagers: Villager[],
+  hasCookingPit: boolean = false
 ): {
   hasFood: boolean;
   updatedFood: number;
@@ -115,14 +120,17 @@ export function processMealConsumption(
   const hasFood = currentFood >= foodNeeded;
   const updatedFood = Math.max(0, currentFood - (hasFood ? foodNeeded : 0));
 
+  const extraHealthBonus = hasCookingPit ? 5 : 0;
+  const extraMoraleBonus = hasCookingPit ? 5 : 0;
+
   const updatedVillagers = villagers.map((v) => ({
     ...v,
     isFed: hasFood,
     health: hasFood
-      ? Math.min(100, (v.health ?? 100) + 4)
+      ? Math.min(100, (v.health ?? 100) + 4 + extraHealthBonus)
       : Math.max(10, (v.health ?? 100) - 10),
     morale: hasFood
-      ? Math.min(100, v.morale + 3)
+      ? Math.min(100, v.morale + 3 + extraMoraleBonus)
       : Math.max(20, v.morale - 8),
   }));
 
@@ -142,8 +150,8 @@ export function calculateWoodHeatingNeeded(isWinter: boolean): number {
 
 /**
  * Aplica a rotina de encerramento do dia para recursos:
- * - A produção física (food, wood, stone, clay) agora ocorre em TEMPO REAL através das entregas dos aldeões.
- * - O consumo diário de comida (rates.foodConsumed) é deduzido no encerramento do dia.
+ * - A produção física (food, wood, stone, clay) ocorre em TEMPO REAL através das entregas dos aldeões.
+ * - As refeições (GameClock: café, almoço, jantar) já consomem a comida diária dos aldeões. Portanto, NÃO desconta comida novamente à meia-noite.
  * - O consumo de lenha para aquecimento da fogueira e geração de conhecimento continuam diários.
  */
 export function applyDailyResourceProduction(
@@ -155,7 +163,6 @@ export function applyDailyResourceProduction(
   newResources: Resources;
   eventNote?: string;
 } {
-  // Consumo diário de comida pelos aldeões
   const foodConsumed = Math.max(0, rates.foodConsumed);
   const newFood = Math.min(
     maxStorage.food,
