@@ -392,15 +392,19 @@ export default function App() {
   // Real-time small deposit from 3D villager carrying goods to storehouse
   const handleVillagerGathers = (resource: 'food' | 'wood' | 'stone' | 'clay', amount: number) => {
     setGameState((prev) => {
+      const before = prev.resources[resource];
+      const newResources = depositGatheredResource(prev.resources, prev.maxStorage, resource, amount);
+      const actuallyDeposited = Math.max(0, newResources[resource] - before);
+
       const prevProd = prev.dailyProduced || { food: 0, wood: 0, stone: 0, clay: 0 };
       const updatedProd = {
         ...prevProd,
-        [resource]: prevProd[resource] + amount,
+        [resource]: prevProd[resource] + actuallyDeposited,
       };
 
       return refreshMissions({
         ...prev,
-        resources: depositGatheredResource(prev.resources, prev.maxStorage, resource, amount),
+        resources: newResources,
         dailyProduced: updatedProd,
       });
     });

@@ -143,8 +143,8 @@ export function calculateWoodHeatingNeeded(isWinter: boolean): number {
 /**
  * Aplica a rotina de encerramento do dia para recursos:
  * - A produção física (food, wood, stone, clay) agora ocorre em TEMPO REAL através das entregas dos aldeões.
- * - Aqui apenas mantemos o consumo de lenha para aquecimento da fogueira, a geração diária de conhecimento (ancião)
- *   e a garantia dos limites de armazenamento.
+ * - O consumo diário de comida (rates.foodConsumed) é deduzido no encerramento do dia.
+ * - O consumo de lenha para aquecimento da fogueira e geração de conhecimento continuam diários.
  */
 export function applyDailyResourceProduction(
   currentResources: Resources,
@@ -155,8 +155,12 @@ export function applyDailyResourceProduction(
   newResources: Resources;
   eventNote?: string;
 } {
-  // Comida permanece a acumulada pelas entregas reais dos trabalhadores
-  const newFood = Math.min(maxStorage.food, currentResources.food);
+  // Consumo diário de comida pelos aldeões
+  const foodConsumed = Math.max(0, rates.foodConsumed);
+  const newFood = Math.min(
+    maxStorage.food,
+    Math.max(0, currentResources.food - foodConsumed)
+  );
 
   // Consumo diário de lenha pela fogueira central
   const woodNeeded = calculateWoodHeatingNeeded(isWinter);
@@ -185,6 +189,51 @@ export function applyDailyResourceProduction(
     },
     eventNote: eventNote || undefined,
   };
+}
+
+/**
+ * Calcula a quantidade entregue por viagem de um aldeão coletor.
+ * Distribui aproximadamente a produção diária calculada por calculateProductionRates()
+ * ao longo dos ciclos reais do trabalhador durante o expediente.
+ */
+export function getWorkerDeliveryAmount(
+  villager: Villager,
+  state: GameState,
+  resource: 'food' | 'wood' | 'stone' | 'clay'
+): number {
+  const rates = calculateProductionRates(state);
+
+  // Conta quantos trabalhadores ativos existem para a mesma profissão
+  const workersInJob = Math.max(
+    1,
+    state.villagers.filter((v) => v.job === villager.job).length
+  );
+
+  let totalDailyForJob = 0;
+  if (resource === 'food' && villager.job === 'farmer') {
+    totalDailyForJob = rates.foodProduced;
+  } else if (resource === 'wood' && villager.job === 'lumberjack') {
+    totalDailyForJob = rates.wood;
+  } else if (resource === 'stone' && villager.job === 'quarryman') {
+    totalDailyForJob = rates.stone;
+  } else if (resource === 'clay' && villager.job === 'potter') {
+    totalDailyForJob = rates.clay;
+  } else {
+    return 1;
+  }
+
+  // Produção diária esperada para este aldeão específico
+  const workerDailyShare = totalDailyForJob / workersInJob;
+
+  // Um expediente completo dura ~10h (ex: 07:00 às 17:00).
+  // Em 15 minutos de dia real (900s), 10 horas de expediente equivalem a ~375 segundos reais.
+  // Cada ciclo de coleta dura ~15 segundos (5.5s trabalho + caminhadas ida e volta).
+  // Portanto, um aldeão faz em média ~25 ciclos de entrega por expediente.
+  const estimatedTripsPerDay = 25;
+
+  // Quantidade por entrega com precisão decimal suave (mínimo 0.1 para feedback perceptível)
+  const amountPerTrip = Math.max(0.1, Math.round((workerDailyShare / estimatedTripsPerDay) * 100) / 100);
+  return amountPerTrip;
 }
 
 /**

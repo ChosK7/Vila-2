@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { decimalToTimeString, timeStringToDecimal } from '../game/ScheduleSystem';
 import { chooseVillagerDecision, chooseVillagerActivity, VillagerActivity } from '../game/VillagerAI';
+import { getWorkerDeliveryAmount } from '../game/ResourceSystem';
 
 interface ThreeVillageSceneProps {
   gameState: GameState;
@@ -162,6 +163,7 @@ interface VillagerAgent {
   activityDuration: number;
   socialPartnerId?: string;
   workTimer: number;
+  workDuration: number;
   speed: number;
   idleAction: IdleActionType;
   idleTimer: number;
@@ -388,18 +390,28 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   const [isCameraMenuOpen, setIsCameraMenuOpen] = useState(false);
   const [activeCameraPreset, setActiveCameraPreset] = useState<string>('overview');
 
+  const gameStatePausedRef = useRef(gameState.isTimePaused ?? false);
+  useEffect(() => {
+    gameStatePausedRef.current = gameState.isTimePaused ?? false;
+  }, [gameState.isTimePaused]);
+
   // Resource nodes positions dynamically linked to facility positions
+  const hasGranary = (gameState.buildings.granary?.count || 0) > 0;
   const RESOURCE_NODES = useMemo(() => ({
     wheat: getNodePos('wheat', { x: -6.5, z: 4.0 }),
     wood: getNodePos('wood', { x: -6.0, z: -5.5 }),
     stone: getNodePos('stone', { x: 6.5, z: -4.5 }),
     clay: getNodePos('clay', { x: 7.0, z: 3.5 }),
+    foodStorage: hasGranary
+      ? getNodePos('granary', { x: 0, z: 4.0 })
+      : getNodePos('campfire', { x: 0, z: 1.2 }),
+    materialStorage: getNodePos('campfire', { x: 1.8, z: 0.8 }),
     storage: getNodePos('campfire', { x: 0, z: 1.2 }),
     campfire: getNodePos('campfire', { x: 0, z: -0.8 }),
     buildersite: getNodePos('buildersite', { x: 3.0, z: 0 }),
     elderDesk: getNodePos('elderDesk', { x: -2.2, z: -2.8 }),
     guardPost: getNodePos('guardPost', { x: 5.5, z: 5.0 }),
-  }), [facilityPositions]);
+  }), [facilityPositions, gameState.buildings.granary?.count, hasGranary]);
 
   // Synchronize 3D facility groups whenever facilityPositions updates
   useEffect(() => {
@@ -855,8 +867,10 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
         }
       }
 
-      // Update 3D Villagers movement and animations
-      updateVillagersAnimation(delta, time);
+      // Update 3D Villagers movement and animations (freezes simulation when paused)
+      if (!gameStatePausedRef.current) {
+        updateVillagersAnimation(delta, time);
+      }
 
       // Camera Follow logic if enabled
       if (followVillager && selectedVillagerId && cameraRef.current) {
@@ -1000,6 +1014,13 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
         rig.root.position.copy(initialPos);
         scene.add(rig.root);
 
+        // Deterministic workDuration based on villager.id (4.0 to 7.0 seconds)
+        let idHash = 0;
+        for (let i = 0; i < villager.id.length; i++) {
+          idHash = (idHash * 31 + villager.id.charCodeAt(i)) & 0x7fffffff;
+        }
+        const workDuration = 4.0 + (idHash % 301) / 100; // 4.00s to 7.00s
+
         agent = {
           villager,
           rig,
@@ -1010,6 +1031,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
           activityTimer: 0,
           activityDuration: 6.0,
           workTimer: 0,
+          workDuration,
           speed: 1.8,
           idleAction: (index % 2 === 0 ? 'sway' : 'look_around') as IdleActionType,
           idleTimer: Math.random() * 2,
@@ -1031,7 +1053,9 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
         agent.villager = villager;
 
         // If job changed or work status changed (starts/ends work schedule), immediately update behavior!
-        if (jobChanged || workStatusChanged) {
+        // REGRA: Se o trabalhador estiver carregando recursos para o depósito ('carrying_to_storage'),
+        // NÃO interrompe a viagem no meio; ele conclui a entrega no depósito antes de retornar à vila.
+        if (jobChanged || (workStatusChanged && agent.state !== 'carrying_to_storage')) {
           assignAgentJobBehavior(agent, villager.job, false);
         }
       }
@@ -1043,7 +1067,9 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     if (prevRoutineRef.current !== currentRoutine) {
       prevRoutineRef.current = currentRoutine;
       agentsRef.current.forEach((agent) => {
-        assignAgentJobBehavior(agent, agent.villager.job);
+        if (agent.state !== 'carrying_to_storage') {
+          assignAgentJobBehavior(agent, agent.villager.job);
+        }
       });
     }
   }, [currentRoutine]);
@@ -1332,27 +1358,28 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
           }
 
           // Finish work cycle: carry resources back to storehouse!
-          if (agent.workTimer >= 4.0) {
+          const requiredDuration = agent.workDuration || 4.5;
+          if (agent.workTimer >= requiredDuration) {
             agent.workTimer = 0;
             hideAllCarriedMeshes(agent.rig);
             if (agent.villager.job === 'farmer') {
               agent.rig.wheatCarry.visible = true;
-              agent.target = RESOURCE_NODES.storage.clone();
+              agent.target = RESOURCE_NODES.foodStorage.clone();
               agent.state = 'carrying_to_storage';
               audio.playHarvest();
             } else if (agent.villager.job === 'lumberjack') {
               agent.rig.woodCarry.visible = true;
-              agent.target = RESOURCE_NODES.storage.clone();
+              agent.target = RESOURCE_NODES.materialStorage.clone();
               agent.state = 'carrying_to_storage';
               audio.playWood();
             } else if (agent.villager.job === 'quarryman') {
               agent.rig.stoneCarry.visible = true;
-              agent.target = RESOURCE_NODES.storage.clone();
+              agent.target = RESOURCE_NODES.materialStorage.clone();
               agent.state = 'carrying_to_storage';
               audio.playStone();
             } else if (agent.villager.job === 'potter') {
               agent.rig.clayCarry.visible = true;
-              agent.target = RESOURCE_NODES.storage.clone();
+              agent.target = RESOURCE_NODES.materialStorage.clone();
               agent.state = 'carrying_to_storage';
               audio.playWood();
             } else {
@@ -1361,26 +1388,30 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
             }
           }
         } else if (agent.state === 'carrying_to_storage') {
-          // Reached storehouse / campfire
+          // Reached storehouse (foodStorage ou materialStorage)
           hideAllCarriedMeshes(agent.rig);
           rig.body.rotation.x = 0;
 
-          // Deposit to storage in real-time
+          // Deposit to storage in real-time com balanceamento por getWorkerDeliveryAmount
           if (agent.villager.job === 'farmer') {
-            onVillagerGathersRef.current?.('food', 1);
+            const amount = getWorkerDeliveryAmount(agent.villager, gameState, 'food');
+            onVillagerGathersRef.current?.('food', amount);
             audio.playHarvest();
           } else if (agent.villager.job === 'lumberjack') {
-            onVillagerGathersRef.current?.('wood', 1);
+            const amount = getWorkerDeliveryAmount(agent.villager, gameState, 'wood');
+            onVillagerGathersRef.current?.('wood', amount);
             audio.playWood();
           } else if (agent.villager.job === 'quarryman') {
-            onVillagerGathersRef.current?.('stone', 1);
+            const amount = getWorkerDeliveryAmount(agent.villager, gameState, 'stone');
+            onVillagerGathersRef.current?.('stone', amount);
             audio.playStone();
           } else if (agent.villager.job === 'potter') {
-            onVillagerGathersRef.current?.('clay', 1);
+            const amount = getWorkerDeliveryAmount(agent.villager, gameState, 'clay');
+            onVillagerGathersRef.current?.('clay', amount);
             audio.playWood();
           }
 
-          // Return to assigned resource area (or join meal if currently breakfast/lunch/dinner)
+          // Return to assigned resource area (ou rotina fora de expediente se o turno terminou durante o trajeto)
           assignAgentJobBehavior(agent, agent.villager.job, false);
         } else if (agent.state === 'walking_to_resource') {
           // Se o expediente encerrou no trajeto, retorna à vila
