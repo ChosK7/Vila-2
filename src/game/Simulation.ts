@@ -123,16 +123,19 @@ export function advanceSimulationDay(
 
   const combinedNote = [woodNote, eraNote].filter(Boolean).join(' ');
 
-  // 8. Relatório da estação/turno
+  // 8. Relatório da estação/turno: contabiliza produção real colhida pelos trabalhadores durante o turno
+  const dailyProd = prevState.dailyProduced || { food: 0, wood: 0, stone: 0, clay: 0 };
+  const dailyCons = prevState.dailyConsumed || { food: 0 };
+
   const report: TurnReport = {
     turn: prevState.turn,
     year: prevState.year,
     season: currentSeasonName,
-    foodProduced: rates.foodProduced,
-    foodConsumed: rates.foodConsumed,
-    woodProduced: rates.wood,
-    stoneProduced: rates.stone,
-    clayProduced: rates.clay,
+    foodProduced: dailyProd.food,
+    foodConsumed: dailyCons.food > 0 ? dailyCons.food : rates.foodConsumed,
+    woodProduced: dailyProd.wood,
+    stoneProduced: dailyProd.stone,
+    clayProduced: dailyProd.clay,
     knowledgeProduced: rates.knowledge,
     completedBuildings,
     populationChange: 0,
@@ -152,6 +155,16 @@ export function advanceSimulationDay(
     buildings: updatedBuildings,
     villagers: updatedVillagers,
     dailyMissions: updatedMissions,
+    // Reinicia contadores diários para o novo turno/estação
+    dailyProduced: {
+      food: 0,
+      wood: 0,
+      stone: 0,
+      clay: 0,
+    },
+    dailyConsumed: {
+      food: 0,
+    },
     activeEvent,
     lastTurnReport: report,
     gameWon,

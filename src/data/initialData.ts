@@ -675,6 +675,15 @@ export const INITIAL_STATE: GameState = {
   villagers: INITIAL_VILLAGERS,
   buildings: INITIAL_BUILDINGS,
   technologies: INITIAL_TECHNOLOGIES,
+  dailyProduced: {
+    food: 0,
+    wood: 0,
+    stone: 0,
+    clay: 0,
+  },
+  dailyConsumed: {
+    food: 0,
+  },
   activeEvent: null,
   lastTurnReport: null,
   isGameOver: false,

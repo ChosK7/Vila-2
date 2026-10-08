@@ -141,7 +141,10 @@ export function calculateWoodHeatingNeeded(isWinter: boolean): number {
 }
 
 /**
- * Aplica a produção diária de recursos e consumo de lenha, respeitando limites de armazenamento.
+ * Aplica a rotina de encerramento do dia para recursos:
+ * - A produção física (food, wood, stone, clay) agora ocorre em TEMPO REAL através das entregas dos aldeões.
+ * - Aqui apenas mantemos o consumo de lenha para aquecimento da fogueira, a geração diária de conhecimento (ancião)
+ *   e a garantia dos limites de armazenamento.
  */
 export function applyDailyResourceProduction(
   currentResources: Resources,
@@ -152,10 +155,12 @@ export function applyDailyResourceProduction(
   newResources: Resources;
   eventNote?: string;
 } {
-  const newFood = Math.min(maxStorage.food, currentResources.food + rates.foodProduced);
+  // Comida permanece a acumulada pelas entregas reais dos trabalhadores
+  const newFood = Math.min(maxStorage.food, currentResources.food);
 
+  // Consumo diário de lenha pela fogueira central
   const woodNeeded = calculateWoodHeatingNeeded(isWinter);
-  let newWood = currentResources.wood + rates.wood;
+  let newWood = currentResources.wood;
   let eventNote = '';
 
   if (newWood >= woodNeeded) {
@@ -166,8 +171,8 @@ export function applyDailyResourceProduction(
   }
   newWood = Math.min(maxStorage.wood, Math.max(0, newWood));
 
-  const newStone = Math.min(maxStorage.stone, currentResources.stone + rates.stone);
-  const newClay = Math.min(maxStorage.clay, currentResources.clay + rates.clay);
+  const newStone = Math.min(maxStorage.stone, currentResources.stone);
+  const newClay = Math.min(maxStorage.clay, currentResources.clay);
   const newKnowledge = currentResources.knowledge + rates.knowledge;
 
   return {

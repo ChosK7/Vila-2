@@ -186,6 +186,15 @@ export interface GameState {
   villagers: Villager[];
   buildings: Record<string, Building>;
   technologies: Record<string, Technology>;
+  dailyProduced?: {
+    food: number;
+    wood: number;
+    stone: number;
+    clay: number;
+  };
+  dailyConsumed?: {
+    food: number;
+  };
   activeEvent: GameEvent | null;
   lastTurnReport: TurnReport | null;
   isGameOver: boolean;

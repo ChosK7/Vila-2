@@ -11,6 +11,9 @@ export interface CharacterRig {
   rightArm: THREE.Group;
   toolSlot: THREE.Group;
   wheatCarry: THREE.Group;
+  woodCarry: THREE.Group;
+  stoneCarry: THREE.Group;
+  clayCarry: THREE.Group;
   mealBowl: THREE.Group;
   villagerId: string;
 }
@@ -228,6 +231,51 @@ export function createCharacterMesh(villager: Villager): CharacterRig {
 
   root.add(wheatCarry);
 
+  // Wood log carried on shoulder / back
+  const woodCarry = new THREE.Group();
+  woodCarry.position.set(0, 0.95, -0.22);
+  woodCarry.visible = false;
+
+  const logGeo = new THREE.CylinderGeometry(0.14, 0.15, 0.75, 10);
+  const logMat = new THREE.MeshStandardMaterial({ color: 0x5c3d24, roughness: 0.9 });
+  const logMesh = new THREE.Mesh(logGeo, logMat);
+  logMesh.rotation.x = Math.PI / 3.5;
+  logMesh.rotation.z = Math.PI / 10;
+  woodCarry.add(logMesh);
+
+  const logBandGeo = new THREE.TorusGeometry(0.15, 0.025, 8, 12);
+  const logBandMat = new THREE.MeshStandardMaterial({ color: 0x3d2716, roughness: 0.8 });
+  const logBand = new THREE.Mesh(logBandGeo, logBandMat);
+  logBand.rotation.x = Math.PI / 3.5;
+  woodCarry.add(logBand);
+
+  root.add(woodCarry);
+
+  // Stone block / rock basket carried on back
+  const stoneCarry = new THREE.Group();
+  stoneCarry.position.set(0, 0.9, -0.22);
+  stoneCarry.visible = false;
+
+  const stoneGeo = new THREE.DodecahedronGeometry(0.22, 0);
+  const stoneMat = new THREE.MeshStandardMaterial({ color: 0x78716c, roughness: 0.85 });
+  const stoneMesh = new THREE.Mesh(stoneGeo, stoneMat);
+  stoneMesh.scale.set(1.1, 0.85, 1.0);
+  stoneCarry.add(stoneMesh);
+
+  root.add(stoneCarry);
+
+  // Clay pot / clay vessel carried
+  const clayCarry = new THREE.Group();
+  clayCarry.position.set(0, 0.9, -0.22);
+  clayCarry.visible = false;
+
+  const potGeo = new THREE.CylinderGeometry(0.18, 0.12, 0.35, 12);
+  const potMat = new THREE.MeshStandardMaterial({ color: 0xc2410c, roughness: 0.8 });
+  const potMesh = new THREE.Mesh(potGeo, potMat);
+  clayCarry.add(potMesh);
+
+  root.add(clayCarry);
+
   // Setup specific tool according to villager job
   setupToolForJob(toolSlot, villager.job);
 
@@ -253,6 +301,9 @@ export function createCharacterMesh(villager: Villager): CharacterRig {
     rightArm,
     toolSlot,
     wheatCarry,
+    woodCarry,
+    stoneCarry,
+    clayCarry,
     mealBowl,
     villagerId: villager.id,
   };

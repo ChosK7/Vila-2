@@ -108,9 +108,11 @@ export function processGameTimeTick(
 
   let updatedFood = prev.resources.food;
   let updatedVillagers = prev.villagers;
+  let foodDeltaConsumed = 0;
 
   if (crossedAnyMeal) {
     const mealResult = processMealConsumption(prev.resources.food, prev.villagers);
+    foodDeltaConsumed = prev.resources.food - mealResult.updatedFood;
     updatedFood = mealResult.updatedFood;
     updatedVillagers = mealResult.updatedVillagers;
 
@@ -124,12 +126,17 @@ export function processGameTimeTick(
   // Atualiza estado de trabalho individual de cada aldeão com base na hora e expediente
   updatedVillagers = updateVillagerWorkStatus(updatedVillagers, nextHour);
 
+  const prevDailyConsumed = prev.dailyConsumed || { food: 0 };
+
   return {
     ...prev,
     gameHour: nextHour,
     resources: {
       ...prev.resources,
       food: updatedFood,
+    },
+    dailyConsumed: {
+      food: prevDailyConsumed.food + Math.max(0, foodDeltaConsumed),
     },
     villagers: updatedVillagers,
   };

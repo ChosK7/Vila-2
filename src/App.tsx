@@ -391,12 +391,19 @@ export default function App() {
 
   // Real-time small deposit from 3D villager carrying goods to storehouse
   const handleVillagerGathers = (resource: 'food' | 'wood' | 'stone' | 'clay', amount: number) => {
-    setGameState((prev) =>
-      refreshMissions({
+    setGameState((prev) => {
+      const prevProd = prev.dailyProduced || { food: 0, wood: 0, stone: 0, clay: 0 };
+      const updatedProd = {
+        ...prevProd,
+        [resource]: prevProd[resource] + amount,
+      };
+
+      return refreshMissions({
         ...prev,
         resources: depositGatheredResource(prev.resources, prev.maxStorage, resource, amount),
-      })
-    );
+        dailyProduced: updatedProd,
+      });
+    });
   };
 
   // Save edited player name

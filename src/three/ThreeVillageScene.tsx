@@ -1048,6 +1048,14 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     }
   }, [currentRoutine]);
 
+  // Helper para ocultar todos os fardos/materiais carregados pelo aldeão
+  const hideAllCarriedMeshes = (rig: CharacterRig) => {
+    rig.wheatCarry.visible = false;
+    rig.woodCarry.visible = false;
+    rig.stoneCarry.visible = false;
+    rig.clayCarry.visible = false;
+  };
+
   const assignAgentJobBehavior = (
     agent: VillagerAgent,
     job: JobType,
@@ -1103,13 +1111,13 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       }
 
       agent.state = 'walking_to_resource';
-      agent.rig.wheatCarry.visible = false;
+      hideAllCarriedMeshes(agent.rig);
       return;
     }
 
     // Atividades fora do expediente: ferramenta guardada
     agent.rig.toolSlot.visible = false;
-    agent.rig.wheatCarry.visible = false;
+    hideAllCarriedMeshes(agent.rig);
 
     // 2. REFEIÇÃO (eating): café, almoço ou jantar
     if (decision.activity === 'eating') {
@@ -1326,19 +1334,27 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
           // Finish work cycle: carry resources back to storehouse!
           if (agent.workTimer >= 4.0) {
             agent.workTimer = 0;
+            hideAllCarriedMeshes(agent.rig);
             if (agent.villager.job === 'farmer') {
               agent.rig.wheatCarry.visible = true;
               agent.target = RESOURCE_NODES.storage.clone();
               agent.state = 'carrying_to_storage';
               audio.playHarvest();
             } else if (agent.villager.job === 'lumberjack') {
+              agent.rig.woodCarry.visible = true;
               agent.target = RESOURCE_NODES.storage.clone();
               agent.state = 'carrying_to_storage';
               audio.playWood();
             } else if (agent.villager.job === 'quarryman') {
+              agent.rig.stoneCarry.visible = true;
               agent.target = RESOURCE_NODES.storage.clone();
               agent.state = 'carrying_to_storage';
               audio.playStone();
+            } else if (agent.villager.job === 'potter') {
+              agent.rig.clayCarry.visible = true;
+              agent.target = RESOURCE_NODES.storage.clone();
+              agent.state = 'carrying_to_storage';
+              audio.playWood();
             } else {
               // Stay working or roam slightly
               agent.workTimer = 0;
@@ -1346,18 +1362,22 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
           }
         } else if (agent.state === 'carrying_to_storage') {
           // Reached storehouse / campfire
-          agent.rig.wheatCarry.visible = false;
+          hideAllCarriedMeshes(agent.rig);
           rig.body.rotation.x = 0;
 
-          // Deposit to storage
+          // Deposit to storage in real-time
           if (agent.villager.job === 'farmer') {
             onVillagerGathersRef.current?.('food', 1);
+            audio.playHarvest();
           } else if (agent.villager.job === 'lumberjack') {
             onVillagerGathersRef.current?.('wood', 1);
+            audio.playWood();
           } else if (agent.villager.job === 'quarryman') {
             onVillagerGathersRef.current?.('stone', 1);
+            audio.playStone();
           } else if (agent.villager.job === 'potter') {
             onVillagerGathersRef.current?.('clay', 1);
+            audio.playWood();
           }
 
           // Return to assigned resource area (or join meal if currently breakfast/lunch/dinner)
@@ -1371,13 +1391,14 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
           // Reached resource node -> begin working!
           agent.state = 'working';
           agent.workTimer = 0;
+          hideAllCarriedMeshes(agent.rig);
         } else if (agent.state === 'eating_meal') {
           // =========================================================================
           // REFEIÇÃO COLETIVA: Café ao amanhecer, Almoço ao meio-dia, Jantar à noite
           // =========================================================================
           rig.mealBowl.visible = true;
           rig.toolSlot.visible = false;
-          rig.wheatCarry.visible = false;
+          hideAllCarriedMeshes(rig);
 
           // Sentar confortavelmente ao redor da fogueira
           agent.idleSitTransition = THREE.MathUtils.lerp(agent.idleSitTransition, 1.0, 0.08);
@@ -1418,7 +1439,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
           // =========================================================================
           rig.mealBowl.visible = false;
           rig.toolSlot.visible = false;
-          rig.wheatCarry.visible = false;
+          hideAllCarriedMeshes(rig);
 
           agent.idleSitTransition = THREE.MathUtils.lerp(agent.idleSitTransition, 1.0, 0.08);
           rig.root.position.y = -0.42 * agent.idleSitTransition;
@@ -1434,7 +1455,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
           // =========================================================================
           rig.mealBowl.visible = false;
           rig.toolSlot.visible = false;
-          rig.wheatCarry.visible = false;
+          hideAllCarriedMeshes(rig);
 
           if (agent.socialPartnerId) {
             const partner = agentsRef.current.get(agent.socialPartnerId);
@@ -1464,7 +1485,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
           // =========================================================================
           rig.mealBowl.visible = false;
           rig.toolSlot.visible = false;
-          rig.wheatCarry.visible = false;
+          hideAllCarriedMeshes(rig);
 
           agent.idleSitTransition = THREE.MathUtils.lerp(agent.idleSitTransition, 0, 0.1);
           rig.root.position.y = THREE.MathUtils.lerp(rig.root.position.y, 0, 0.1);
@@ -1483,7 +1504,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
           // =========================================================================
           rig.mealBowl.visible = false;
           rig.toolSlot.visible = false;
-          rig.wheatCarry.visible = false;
+          hideAllCarriedMeshes(rig);
 
           if (agent.idleAction === 'warm_hands') {
             agent.idleSitTransition = THREE.MathUtils.lerp(agent.idleSitTransition, 0.0, 0.1);
