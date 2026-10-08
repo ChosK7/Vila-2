@@ -63,7 +63,7 @@ export function advanceSimulationDay(
     prevState.buildings,
     buildersCount
   );
-  const maxStorage = calculateStorageCaps(updatedBuildings);
+  const maxStorage = calculateStorageCaps(updatedBuildings, prevState.villageLevel ?? 1);
 
   // 2. ResourceSystem: Aplica produção diária de recursos e aquecimento
   const isWinter = nextSeasonIdx === 3;

@@ -90,6 +90,7 @@ export interface Building {
   cost: Partial<Resources>;
   requiredEra: number;
   requiredTech?: string;
+  requiredVillageLevel?: number;
   count: number;
   maxCount?: number;
   level?: number;

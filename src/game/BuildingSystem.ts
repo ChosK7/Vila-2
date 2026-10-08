@@ -1,24 +1,42 @@
 import { Building, GameState, Resources } from '../types/game';
+import { getVillageHousingBonus, getVillageStorageMultiplier } from './LevelUnlockSystem';
 
 /**
- * Calcula os limites máximos de armazenamento com base no número de celeiros (granary).
+ * Calcula os limites máximos de armazenamento com base no número de celeiros (granary)
+ * e aplica o multiplicador de armazenamento do nível da vila (LevelUnlockSystem).
  */
-export function calculateStorageCaps(buildings: Record<string, Building>): GameState['maxStorage'] {
+export function calculateStorageCaps(
+  buildings: Record<string, Building>,
+  villageLevel: number = 1
+): GameState['maxStorage'] {
   const granariesCount = buildings.granary?.count || 0;
-  return {
+  const storageMultiplier = getVillageStorageMultiplier(villageLevel);
+
+  const baseCaps = {
     food: 120 + granariesCount * 100,
     wood: 120 + granariesCount * 40,
     stone: 100 + granariesCount * 40,
     clay: 100 + granariesCount * 40,
   };
+
+  return {
+    food: Math.round(baseCaps.food * storageMultiplier),
+    wood: Math.round(baseCaps.wood * storageMultiplier),
+    stone: Math.round(baseCaps.stone * storageMultiplier),
+    clay: Math.round(baseCaps.clay * storageMultiplier),
+  };
 }
 
 /**
- * Calcula o limite populacional/habitacional com base nos edifícios da aldeia.
- * Regra: 2 por cabana no nível 1, +2 a cada novo nível da cabana.
+ * Calcula o limite populacional/habitacional com base nos edifícios da aldeia
+ * e no bônus de nível global da vila (LevelUnlockSystem).
+ * Regra: 2 por cabana no nível 1, +2 a cada novo nível da cabana + bônus de nível da vila.
  */
-export function calculateHousingCapacity(buildings: Record<string, Building>): number {
-  return Object.values(buildings).reduce((acc, b) => {
+export function calculateHousingCapacity(
+  buildings: Record<string, Building>,
+  villageLevel: number = 1
+): number {
+  const buildingCapacity = Object.values(buildings).reduce((acc, b) => {
     if (b.category !== 'housing' || b.count <= 0) return acc;
     if (b.id === 'hut') {
       const hutLevel = Math.max(1, b.level || 1);
@@ -27,6 +45,9 @@ export function calculateHousingCapacity(buildings: Record<string, Building>): n
     }
     return acc + (b.housingCap || 0) * b.count;
   }, 0);
+
+  const villageBonus = getVillageHousingBonus(villageLevel);
+  return buildingCapacity + villageBonus;
 }
 
 /**

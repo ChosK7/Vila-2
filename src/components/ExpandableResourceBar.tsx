@@ -25,10 +25,10 @@ export const ExpandableResourceBar: React.FC<ExpandableResourceBarProps> = ({
   onToggleExpand,
   rates,
 }) => {
-  const { resources, maxStorage, villagers, buildings } = gameState;
+  const { resources, maxStorage, villagers, buildings, villageLevel = 1 } = gameState;
 
-  // Calculate housing capacity: 2 base por cabana + 2 por novo nível
-  const housingCap = calculateHousingCapacity(buildings);
+  // Calculate housing capacity: cabanas + bônus de nível da vila
+  const housingCap = calculateHousingCapacity(buildings, villageLevel);
 
   // Village Defense score
   const guardsCount = villagers.filter((v) => v.job === 'guard').length;

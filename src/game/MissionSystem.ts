@@ -6,6 +6,7 @@
 
 import { DailyMission, GameState, JobType, MissionMetric, MissionType, Resources } from '../types/game';
 import { addVillageXP } from './ProgressionSystem';
+import { applyLevelUnlocks } from './LevelUnlockSystem';
 
 export interface MissionTemplate {
   id: string;
@@ -656,19 +657,10 @@ export function applyMissionReward(
     clay: (state.resources.clay || 0) + (mission.rewardResources?.clay || 0),
   };
 
-  // 3. Desbloqueio progressivo de trabalho (se especificado na missão ou por nível)
+  // 3. Desbloqueio de trabalho específico da missão (se houver)
   const updatedUnlockedJobs = [...(state.unlockedJobs || ['farmer', 'lumberjack', 'quarryman'])];
   if (mission.unlockJob && !updatedUnlockedJobs.includes(mission.unlockJob)) {
     updatedUnlockedJobs.push(mission.unlockJob);
-  }
-  if (xpResult.level >= 2 && !updatedUnlockedJobs.includes('potter')) {
-    updatedUnlockedJobs.push('potter');
-  }
-  if (xpResult.level >= 2 && !updatedUnlockedJobs.includes('elder')) {
-    updatedUnlockedJobs.push('elder');
-  }
-  if (xpResult.level >= 3 && !updatedUnlockedJobs.includes('guard')) {
-    updatedUnlockedJobs.push('guard');
   }
 
   // 4. Marcação da missão como claimed
@@ -712,6 +704,9 @@ export function applyMissionReward(
     unlockedJobs: updatedUnlockedJobs,
     dailyMissions: updatedMissions,
   };
+
+  // 7. Aplica os desbloqueios canônicos do nível da vila (LevelUnlockSystem)
+  finalState = applyLevelUnlocks(finalState);
 
   if (!allClaimed) {
     finalState = refreshMissions(finalState);

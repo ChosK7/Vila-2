@@ -23,6 +23,7 @@ import {
 import { audio } from '../utils/audio';
 import { calculateHousingCapacity } from '../game/BuildingSystem';
 import { getVillageLevelConfig, MAX_VILLAGE_LEVEL } from '../game/ProgressionSystem';
+import { getLevelReward } from '../game/LevelUnlockSystem';
 import { BuildingPanel } from './BuildingPanel';
 import { TechTreePanel } from './TechTreePanel';
 
@@ -98,6 +99,9 @@ export const TaskAssignmentBar: React.FC<TaskAssignmentBarProps> = ({
   // Sub-tab inside tasks: 'tasks' | 'missions'
   const [activeTab, setActiveTab] = useState<'tasks' | 'missions'>('tasks');
 
+  // Preview do próximo nível
+  const [showNextLevelPreview, setShowNextLevelPreview] = useState(false);
+
   // Counts per job
   const jobCounts: Record<JobType, number> = {
     idle: 0,
@@ -117,8 +121,8 @@ export const TaskAssignmentBar: React.FC<TaskAssignmentBarProps> = ({
   const idleCount = jobCounts.idle;
   const assignedCount = villagers.length - idleCount;
 
-  // Housing cap: 2 base por cabana + 2 por novo nível
-  const housingCap = calculateHousingCapacity(buildings);
+  // Housing cap: cabanas + bônus de nível da vila
+  const housingCap = calculateHousingCapacity(buildings, villageLevel);
   const canRecruit = resources.food >= 15 && villagers.length < housingCap;
 
   // Informações do Sistema de Progressão da Vila
@@ -309,30 +313,139 @@ export const TaskAssignmentBar: React.FC<TaskAssignmentBarProps> = ({
 
             {/* Village Level & Close button */}
             <div className="flex items-center gap-2">
-              <div
-                className="flex flex-col items-end sm:items-start bg-[#FAF3E7] px-2.5 py-1 rounded-xl border border-amber-300 text-[11px] shadow-2xs"
-                title={levelConfig.description}
-              >
-                <div className="flex items-center gap-1.5 font-bold leading-tight">
-                  <span className="text-amber-900 font-display font-black">Nível {levelConfig.level}</span>
-                  <span className="text-stone-400">·</span>
-                  <span className="text-[#78350F] font-semibold">{levelConfig.name}</span>
-                </div>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <div className="w-16 sm:w-20 h-1.5 bg-stone-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-300"
-                      style={{
-                        width: isMaxLevel
-                          ? '100%'
-                          : `${Math.min(100, Math.max(0, (villageXP / (xpToNextLevel || 1)) * 100))}%`,
-                      }}
-                    ></div>
+              <div className="relative">
+                <div
+                  className="flex flex-col items-end sm:items-start bg-[#FAF3E7] px-2.5 py-1 rounded-xl border border-amber-300 text-[11px] shadow-2xs cursor-pointer hover:bg-[#F5EAD9] transition-colors"
+                  onClick={() => setShowNextLevelPreview((prev) => !prev)}
+                  title="Clique para ver o próximo nível e bônus"
+                >
+                  <div className="flex items-center gap-1.5 font-bold leading-tight">
+                    <span className="text-amber-900 font-display font-black">Nível {levelConfig.level}</span>
+                    <span className="text-stone-400">·</span>
+                    <span className="text-[#78350F] font-semibold">{levelConfig.name}</span>
+                    <span className="text-[9px] bg-amber-200/90 text-amber-950 font-bold px-1.5 py-0.2 rounded-md hover:bg-amber-300 transition-colors">
+                      {isMaxLevel ? 'Status' : 'Próximo nível ▾'}
+                    </span>
                   </div>
-                  <span className="text-[10px] font-mono text-stone-600 font-bold whitespace-nowrap">
-                    {isMaxLevel ? 'NÍVEL MÁXIMO' : `${villageXP} / ${xpToNextLevel} XP`}
-                  </span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className="w-16 sm:w-20 h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-300"
+                        style={{
+                          width: isMaxLevel
+                            ? '100%'
+                            : `${Math.min(100, Math.max(0, (villageXP / (xpToNextLevel || 1)) * 100))}%`,
+                        }}
+                      ></div>
+                    </div>
+                    <span className="text-[10px] font-mono text-stone-600 font-bold whitespace-nowrap">
+                      {isMaxLevel ? 'NÍVEL MÁXIMO' : `${villageXP} / ${xpToNextLevel} XP`}
+                    </span>
+                  </div>
                 </div>
+
+                {/* Popover / Tooltip do Próximo Nível */}
+                {showNextLevelPreview && (
+                  <div className="absolute right-0 top-full mt-1.5 z-50 w-64 bg-[#FFFDF9] border-2 border-[#33261D] rounded-xl p-3 shadow-xl text-xs">
+                    {isMaxLevel ? (
+                      <div>
+                        <div className="font-display font-extrabold text-amber-900 text-sm">
+                          Cidade Ancestral (Nível 10)
+                        </div>
+                        <p className="text-stone-600 text-[11px] mt-1">
+                          Todos os bônus de nível desbloqueados.
+                        </p>
+                        <div className="mt-2 text-[11px] font-semibold text-emerald-800 space-y-0.5 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
+                          <div>✨ +20% produção geral</div>
+                          <div>📜 +20% geração de conhecimento</div>
+                          <div>👥 +10 capacidade populacional</div>
+                          <div>📦 +20% capacidade de armazenamento</div>
+                        </div>
+                      </div>
+                    ) : (() => {
+                      const nextLvl = villageLevel + 1;
+                      const nextReward = getLevelReward(nextLvl);
+                      const currentJobs = getLevelReward(villageLevel).unlockJobs || [];
+                      const newJobs = (nextReward.unlockJobs || []).filter(
+                        (j) => !currentJobs.includes(j)
+                      );
+
+                      const jobNames: Record<string, string> = {
+                        farmer: '🌾 Agricultor',
+                        lumberjack: '🪵 Lenhador',
+                        quarryman: '𫭢 Cortador de Pedra',
+                        potter: '🏺 Oleiro',
+                        elder: '📜 Ancião',
+                        guard: '🛡️ Guarda',
+                        builder: '🔨 Construtor',
+                      };
+
+                      return (
+                        <div>
+                          <div className="flex items-center justify-between border-b border-stone-200 pb-1.5 mb-1.5">
+                            <span className="font-display font-extrabold text-stone-900 text-xs">
+                              Nível {nextLvl} — {nextReward.title}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowNextLevelPreview(false);
+                              }}
+                              className="text-stone-400 hover:text-stone-700"
+                            >
+                              <X size={13} />
+                            </button>
+                          </div>
+                          <p className="text-stone-600 text-[11px] mb-2">
+                            {nextReward.description}
+                          </p>
+
+                          {newJobs.length > 0 && (
+                            <div className="mb-2">
+                              <span className="font-bold text-stone-800 text-[11px] block mb-0.5">
+                                Desbloqueia:
+                              </span>
+                              <div className="flex flex-wrap gap-1">
+                                {newJobs.map((j) => (
+                                  <span
+                                    key={j}
+                                    className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-bold text-[10px] border border-amber-300"
+                                  >
+                                    {jobNames[j] || j}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="bg-[#FAF3E7] p-2 rounded-lg border border-amber-200 text-[11px]">
+                            <span className="font-bold text-amber-950 block mb-0.5">Bônus:</span>
+                            <ul className="space-y-0.5 text-stone-700">
+                              {nextReward.productionBonus ? (
+                                <li>✨ +{Math.round(nextReward.productionBonus * 100)}% produção</li>
+                              ) : null}
+                              {nextReward.resourceStorageBonus ? (
+                                <li>📦 +{Math.round(nextReward.resourceStorageBonus * 100)}% armazenamento</li>
+                              ) : null}
+                              {nextReward.housingBonus ? (
+                                <li>👥 +{nextReward.housingBonus} capacidade populacional</li>
+                              ) : null}
+                              {nextReward.researchBonus ? (
+                                <li>📜 +{Math.round(nextReward.researchBonus * 100)}% conhecimento</li>
+                              ) : null}
+                              {!nextReward.productionBonus &&
+                              !nextReward.resourceStorageBonus &&
+                              !nextReward.housingBonus &&
+                              !nextReward.researchBonus && (
+                                <li className="text-stone-500 italic">Novos ofícios para a comunidade</li>
+                              )}
+                            </ul>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
 
               <button

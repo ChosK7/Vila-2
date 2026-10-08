@@ -1,4 +1,8 @@
 import { GameState, Resources, Villager } from '../types/game';
+import {
+  getVillageProductionMultiplier,
+  getVillageResearchMultiplier,
+} from './LevelUnlockSystem';
 
 export interface ResourceRates {
   foodNet: number;
@@ -12,12 +16,19 @@ export interface ResourceRates {
 
 /**
  * Calcula a taxa de produção e consumo de todos os recursos com base nos
- * aldeões, tecnologias desbloqueadas, edifícios construídos e estação do ano.
+ * aldeões, tecnologias desbloqueadas, edifícios construídos, estação do ano
+ * e bônus do nível da vila (LevelUnlockSystem).
  */
 export function calculateProductionRates(
-  state: Pick<GameState, 'villagers' | 'buildings' | 'technologies' | 'seasonIndex'>
+  state: Pick<GameState, 'villagers' | 'buildings' | 'technologies' | 'seasonIndex'> & {
+    villageLevel?: number;
+  }
 ): ResourceRates {
   const { villagers, buildings, technologies, seasonIndex } = state;
+  const villageLevel = state.villageLevel ?? 1;
+  const productionMult = getVillageProductionMultiplier(villageLevel);
+  const researchMult = getVillageResearchMultiplier(villageLevel);
+
   const seasons = ['Primavera', 'Verão', 'Outono', 'Inverno'] as const;
   const season = seasons[seasonIndex] || 'Primavera';
 
@@ -61,17 +72,24 @@ export function calculateProductionRates(
     }
   });
 
+  // Aplica multiplicador do nível da vila na produção positiva
+  const finalFoodProduced = foodProduced * productionMult;
+  const finalWoodProduced = woodProduced * productionMult;
+  const finalStoneProduced = stoneProduced * productionMult;
+  const finalClayProduced = clayProduced * productionMult;
+  const finalKnowledgeProduced = knowledgeProduced * researchMult;
+
   const foodConsumed = Math.round(villagers.length * (1 - grindingBonus));
-  const foodNet = Math.round(foodProduced) - foodConsumed;
+  const foodNet = Math.round(finalFoodProduced) - foodConsumed;
 
   return {
     foodNet,
-    foodProduced: Math.round(foodProduced),
+    foodProduced: Math.round(finalFoodProduced),
     foodConsumed,
-    wood: Math.round(woodProduced),
-    stone: Math.round(stoneProduced),
-    clay: Math.round(clayProduced),
-    knowledge: Math.round(knowledgeProduced),
+    wood: Math.round(finalWoodProduced),
+    stone: Math.round(finalStoneProduced),
+    clay: Math.round(finalClayProduced),
+    knowledge: Math.round(finalKnowledgeProduced),
   };
 }
 

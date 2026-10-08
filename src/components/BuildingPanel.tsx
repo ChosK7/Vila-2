@@ -15,7 +15,7 @@ export const BuildingPanel: React.FC<BuildingPanelProps> = ({
   onStartConstruction,
   onUpgradeBuilding,
 }) => {
-  const { buildings, resources, currentEra, technologies } = gameState;
+  const { buildings, resources, currentEra, technologies, villageLevel = 1 } = gameState;
   const [activeCategory, setActiveCategory] = useState<'all' | 'housing' | 'production' | 'defense' | 'wonder'>('all');
 
   const buildingsList = Object.values(buildings);
@@ -29,8 +29,9 @@ export const BuildingPanel: React.FC<BuildingPanelProps> = ({
     return true;
   };
 
-  // Check if building is unlocked by tech and era
+  // Check if building is unlocked by level, tech and era
   const isUnlocked = (b: Building) => {
+    if (b.requiredVillageLevel && villageLevel < b.requiredVillageLevel) return false;
     if (b.requiredEra > currentEra) return false;
     if (b.requiredTech && !technologies[b.requiredTech]?.unlocked) return false;
     return true;
@@ -288,15 +289,33 @@ export const BuildingPanel: React.FC<BuildingPanelProps> = ({
                   );
                 })()}
 
-                {!unlocked && (
-                  <div className="text-[11px] text-stone-500 italic flex items-center gap-1">
-                    <AlertCircle size={12} className="text-amber-700 shrink-0" />
-                    <span>
-                      Requer Era {building.requiredEra}
-                      {building.requiredTech && ` e pesquisa prévia.`}
-                    </span>
-                  </div>
-                )}
+                {!unlocked && (() => {
+                  const levelLocked = !!(building.requiredVillageLevel && villageLevel < building.requiredVillageLevel);
+                  const techLocked = !!(building.requiredTech && !technologies[building.requiredTech]?.unlocked);
+                  const eraLocked = building.requiredEra > currentEra;
+
+                  const reasons: string[] = [];
+                  if (levelLocked) {
+                    reasons.push(`🔒 Requer Nível ${building.requiredVillageLevel} da Vila`);
+                  }
+                  if (techLocked) {
+                    const techName = technologies[building.requiredTech!]?.name || building.requiredTech;
+                    reasons.push(`📜 Requer pesquisa: ${techName}`);
+                  }
+                  if (eraLocked && !techLocked) {
+                    reasons.push(`🏛️ Requer Era ${building.requiredEra}`);
+                  }
+
+                  return (
+                    <div className="text-[11px] text-amber-900 bg-amber-50/80 p-1.5 rounded-lg border border-amber-200/80 flex flex-col gap-0.5">
+                      {reasons.map((r, i) => (
+                        <div key={i} className="flex items-center gap-1 font-medium">
+                          <span>{r}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           );

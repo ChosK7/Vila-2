@@ -34,7 +34,8 @@ import {
 } from './game/BuildingSystem';
 import { advanceSimulationDay } from './game/Simulation';
 import { updateVillagerWorkStatus } from './game/ScheduleSystem';
-import { addVillageXP, getXPRequiredForLevel, MAX_VILLAGE_LEVEL } from './game/ProgressionSystem';
+import { getXPRequiredForLevel, MAX_VILLAGE_LEVEL } from './game/ProgressionSystem';
+import { applyLevelUnlocks } from './game/LevelUnlockSystem';
 import {
   applyMissionReward,
   updateMissionProgress,
@@ -90,7 +91,8 @@ export default function App() {
           parsed.dailyMissions = generateMissionSet(parsed, 3);
         }
 
-        return parsed;
+        // Aplica os desbloqueios canônicos por nível no save carregado
+        return applyLevelUnlocks(parsed);
       }
     } catch (e) {
       // fallback
@@ -175,7 +177,7 @@ export default function App() {
 
   // Recruit new villager (automatically assigned if auto-assign is on)
   const handleRecruitVillager = () => {
-    const housingCap = calculateHousingCapacity(gameState.buildings);
+    const housingCap = calculateHousingCapacity(gameState.buildings, gameState.villageLevel ?? 1);
 
     if (gameState.villagers.length >= housingCap || !canAffordVillagerRecruitment(gameState.resources.food)) {
       return;
