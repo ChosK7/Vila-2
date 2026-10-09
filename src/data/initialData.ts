@@ -143,6 +143,25 @@ export const INITIAL_DAILY_MISSIONS: DailyMission[] = [
 ];
 
 export const INITIAL_BUILDINGS: Record<string, Building> = {
+  // Centro Administrativo e Depósito
+  village_hall: {
+    id: 'village_hall',
+    name: 'Sede da Vila',
+    description:
+      'Casa comunal central da aldeia. Serve como centro administrativo e depósito geral de alimentos, madeira, pedra e argila nos primeiros níveis da vila.',
+    category: 'production',
+    cost: {},
+    requiredEra: 1,
+    requiredVillageLevel: 1,
+    count: 1,
+    maxCount: 1,
+    benefitsDescription:
+      'Centro administrativo e depósito geral de recursos da vila.',
+    icon: 'village_hall',
+    constructionTurnsTotal: 0,
+    constructionTurnsLeft: 0,
+  },
+
   // Moradias
   hut: {
     id: 'hut',
@@ -178,7 +197,7 @@ export const INITIAL_BUILDINGS: Record<string, Building> = {
   longhouse: {
     id: 'longhouse',
     name: 'Casa Longa Comunitária',
-    description: 'Sede central da vila onde anciãos se reúnem com mapas e as tarefas são formalmente distribuídas.',
+    description: 'Casa Longa Comunitária de Conselho e Reuniões',
     category: 'housing',
     cost: { wood: 65, stone: 45, clay: 25 },
     requiredEra: 3,

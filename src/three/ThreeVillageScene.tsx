@@ -119,6 +119,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   // Available facilities for reorganization based on default nodes + player buildings
   const availableFacilities = useMemo(() => {
     const list: Array<{ id: string; name: string; icon: string; description: string }> = [
+      { id: 'village_hall', name: 'Sede da Vila', icon: '🏛️', description: DEFAULT_FACILITY_CONFIGS.village_hall.description },
       { id: 'wheat', name: 'Trigo', icon: '🌾', description: DEFAULT_FACILITY_CONFIGS.wheat.description },
       { id: 'wood', name: 'Bosque', icon: '🪵', description: DEFAULT_FACILITY_CONFIGS.wood.description },
       { id: 'stone', name: 'Pedreira', icon: '🪨', description: DEFAULT_FACILITY_CONFIGS.stone.description },
@@ -288,6 +289,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     return createFacilityNodes(gameState, getNodePos);
   }, [
     facilityPositions,
+    gameState.buildings.village_hall?.count,
     gameState.buildings.granary?.count,
     gameState.buildings.cooking_pit?.count,
     gameState.buildings.sawmill?.count,

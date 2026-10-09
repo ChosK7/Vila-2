@@ -6,6 +6,7 @@ export interface FacilityNodes {
   wood: THREE.Vector3;
   stone: THREE.Vector3;
   clay: THREE.Vector3;
+  villageHall: THREE.Vector3;
   foodStorage: THREE.Vector3;
   mealArea: THREE.Vector3;
   woodStorage: THREE.Vector3;
@@ -26,6 +27,7 @@ export const DEFAULT_FACILITY_FALLBACKS: Record<string, { x: number; z: number }
   wood: { x: -6.0, z: -5.5 },
   stone: { x: 6.5, z: -4.5 },
   clay: { x: 7.0, z: 3.5 },
+  village_hall: { x: 0, z: 2.2 },
   granary: { x: 0, z: 4.0 },
   cooking_pit: { x: -1.2, z: 1.5 },
   sawmill: { x: -3.8, z: -4.5 },
@@ -61,6 +63,7 @@ export function createFacilityNodes(
     wood: getNodePos('wood', DEFAULT_FACILITY_FALLBACKS.wood),
     stone: getNodePos('stone', DEFAULT_FACILITY_FALLBACKS.stone),
     clay: getNodePos('clay', DEFAULT_FACILITY_FALLBACKS.clay),
+    villageHall: getNodePos('village_hall', DEFAULT_FACILITY_FALLBACKS.village_hall),
     foodStorage: hasGranary
       ? getNodePos('granary', DEFAULT_FACILITY_FALLBACKS.granary)
       : getNodePos('campfire', DEFAULT_FACILITY_FALLBACKS.campfireFoodFallback),

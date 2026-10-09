@@ -188,29 +188,35 @@ export const BuildingPanel: React.FC<BuildingPanelProps> = ({
               {/* Cost & Construction Action Button */}
               <div className="border-t border-stone-200 pt-2 flex flex-col gap-2">
                 {/* Costs list */}
-                <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-stone-600">
-                  <span className="text-stone-400 font-normal">Custo:</span>
-                  {building.cost.wood && (
-                    <span className={resources.wood >= building.cost.wood ? 'text-stone-800 font-bold' : 'text-red-600 font-bold'}>
-                      🪵 {building.cost.wood}
-                    </span>
-                  )}
-                  {building.cost.stone && (
-                    <span className={resources.stone >= building.cost.stone ? 'text-stone-800 font-bold' : 'text-red-600 font-bold'}>
-                      𫭢 {building.cost.stone}
-                    </span>
-                  )}
-                  {building.cost.clay && (
-                    <span className={resources.clay >= building.cost.clay ? 'text-stone-800 font-bold' : 'text-red-600 font-bold'}>
-                      🧱 {building.cost.clay}
-                    </span>
-                  )}
-                  {building.cost.knowledge && (
-                    <span className={resources.knowledge >= building.cost.knowledge ? 'text-purple-800 font-bold' : 'text-red-600 font-bold'}>
-                      📜 {building.cost.knowledge}
-                    </span>
-                  )}
-                </div>
+                {Object.keys(building.cost).length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-stone-600">
+                    <span className="text-stone-400 font-normal">Custo:</span>
+                    {building.cost.wood && (
+                      <span className={resources.wood >= building.cost.wood ? 'text-stone-800 font-bold' : 'text-red-600 font-bold'}>
+                        🪵 {building.cost.wood}
+                      </span>
+                    )}
+                    {building.cost.stone && (
+                      <span className={resources.stone >= building.cost.stone ? 'text-stone-800 font-bold' : 'text-red-600 font-bold'}>
+                        🪨 {building.cost.stone}
+                      </span>
+                    )}
+                    {building.cost.clay && (
+                      <span className={resources.clay >= building.cost.clay ? 'text-stone-800 font-bold' : 'text-red-600 font-bold'}>
+                        🧱 {building.cost.clay}
+                      </span>
+                    )}
+                    {building.cost.knowledge && (
+                      <span className={resources.knowledge >= building.cost.knowledge ? 'text-purple-800 font-bold' : 'text-red-600 font-bold'}>
+                        📜 {building.cost.knowledge}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-[11px] font-bold text-emerald-800">
+                    ✓ Estrutura Central Fundacional da Vila
+                  </div>
+                )}
 
                 {/* Build Button */}
                 {unlocked && !maxed && (

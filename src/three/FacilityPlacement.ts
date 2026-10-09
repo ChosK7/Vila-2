@@ -36,6 +36,14 @@ export const MAP_BOUNDS = {
 } as const;
 
 export const DEFAULT_FACILITY_CONFIGS: Record<string, FacilityConfig> = {
+  village_hall: {
+    name: 'Sede da Vila',
+    icon: '🏛️',
+    defaultX: 0,
+    defaultZ: 2.2,
+    description:
+      'Centro administrativo e depósito geral da vila nos primeiros níveis.',
+  },
   campfire: { name: 'Fogueira Central & Refeições', icon: '🔥', defaultX: 0, defaultZ: -0.8, description: 'Ponto de encontro onde os aldeões tomam café da manhã, almoçam, jantam e descansam.' },
   wheat: { name: 'Campos de Trigo (Agricultor)', icon: '🌾', defaultX: -6.5, defaultZ: 4.0, description: 'Plantações douradas de trigo ceifadas pelos agricultores.' },
   wood: { name: 'Bosque de Coníferas (Lenhador)', icon: '🪵', defaultX: -6.0, defaultZ: -5.5, description: 'Área florestal onde os lenhadores abatem toras de madeira.' },

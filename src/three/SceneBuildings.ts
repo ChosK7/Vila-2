@@ -9,6 +9,7 @@ import {
   createSawmillMesh,
   createStoneDwellingMesh,
   createStoneworksMesh,
+  createVillageHallMesh,
   createWellMesh,
   createZigguratMesh,
 } from './buildingMeshes';
@@ -22,6 +23,7 @@ export interface SceneBuildingsContext {
 }
 
 export const BUILDING_FACILITY_IDS = [
+  'village_hall',
   'shelter_1',
   'shelter_2',
   'shelter_3',
@@ -37,6 +39,7 @@ export const BUILDING_FACILITY_IDS = [
 ] as const;
 
 export const BUILDING_FALLBACK_POSITIONS: Record<string, { x: number; z: number }> = {
+  village_hall: { x: 0, z: 2.2 },
   shelter_1: { x: -2.8, z: -1.8 },
   shelter_2: { x: -2.8, z: 1.8 },
   shelter_3: { x: 2.8, z: -2.0 },
@@ -77,6 +80,15 @@ export function syncSceneBuildings(context: SceneBuildingsContext): void {
     buildingsGroup.add(mesh);
     facilityGroups.set(id, mesh);
   };
+
+  // Village Hall (Sede da Vila / Depósito Geral Central)
+  if ((buildings.village_hall?.count || 0) > 0) {
+    registerBuilding(
+      'village_hall',
+      createVillageHallMesh(),
+      BUILDING_FALLBACK_POSITIONS.village_hall
+    );
+  }
 
   // Starter or built huts with visual level
   const hutsCount = Math.max(1, buildings.hut?.count || 1);

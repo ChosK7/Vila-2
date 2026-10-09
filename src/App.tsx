@@ -84,10 +84,16 @@ export default function App() {
           parsed.xpToNextLevel = 0;
         }
 
-        // Migração e atualização segura das construções (sawmill, stoneworks, cooking_pit)
+        // Migração e atualização segura das construções (village_hall, sawmill, stoneworks, cooking_pit)
         parsed.buildings = {
           ...INITIAL_BUILDINGS,
           ...parsed.buildings,
+          village_hall: {
+            ...INITIAL_BUILDINGS.village_hall,
+            ...(parsed.buildings?.village_hall || {}),
+            count: 1,
+            maxCount: 1,
+          },
           cooking_pit: {
             ...INITIAL_BUILDINGS.cooking_pit,
             ...(parsed.buildings?.cooking_pit || {}),

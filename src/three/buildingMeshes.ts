@@ -812,3 +812,153 @@ export function createPotteryKilnMesh(): THREE.Group {
   return group;
 }
 
+// 12. Sede da Vila & Depósito Geral Central (Village Hall)
+export function createVillageHallMesh(): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'village_hall';
+
+  // 1. Base baixa de pedra rústica (fundação comunal)
+  const foundationGeo = new THREE.BoxGeometry(3.2, 0.25, 2.6);
+  const foundation = new THREE.Mesh(foundationGeo, darkStoneMat);
+  foundation.position.y = 0.125;
+  foundation.receiveShadow = true;
+  foundation.castShadow = true;
+  group.add(foundation);
+
+  // 2. Paredes de adobe e barro ancestral
+  const wallsGeo = new THREE.BoxGeometry(2.9, 1.1, 2.3);
+  const walls = new THREE.Mesh(wallsGeo, adobeMat);
+  walls.position.y = 0.25 + 0.55;
+  walls.castShadow = true;
+  walls.receiveShadow = true;
+  group.add(walls);
+
+  // 3. Pilares de madeira rústica nos 4 cantos
+  const postGeo = new THREE.CylinderGeometry(0.07, 0.08, 1.35, 6);
+  [
+    [-1.4, -1.1],
+    [1.4, -1.1],
+    [-1.4, 1.1],
+    [1.4, 1.1],
+  ].forEach(([px, pz]) => {
+    const post = new THREE.Mesh(postGeo, darkWoodMat);
+    post.position.set(px, 0.7, pz);
+    post.castShadow = true;
+    group.add(post);
+  });
+
+  // 4. Telhado largo de palha com caimento duplo (estilo casa comunal)
+  const roofGeo = new THREE.CylinderGeometry(0.12, 1.7, 3.4, 3);
+  const roof = new THREE.Mesh(roofGeo, thatchMat);
+  roof.rotation.z = Math.PI / 2;
+  roof.rotation.x = Math.PI;
+  roof.position.y = 1.95;
+  roof.castShadow = true;
+  group.add(roof);
+
+  // Vigas cruzadas no frontão
+  const gableGeo = new THREE.BoxGeometry(0.07, 1.0, 0.07);
+  const g1 = new THREE.Mesh(gableGeo, darkWoodMat);
+  g1.position.set(-1.65, 2.15, 0);
+  g1.rotation.z = 0.45;
+  group.add(g1);
+  const g2 = new THREE.Mesh(gableGeo, darkWoodMat);
+  g2.position.set(-1.65, 2.15, 0);
+  g2.rotation.z = -0.45;
+  group.add(g2);
+
+  // 5. Entrada frontal com vão e toldo rústico
+  const doorGeo = new THREE.BoxGeometry(0.65, 0.85, 0.2);
+  const doorMat = new THREE.MeshBasicMaterial({ color: 0x1f1b18 });
+  const door = new THREE.Mesh(doorGeo, doorMat);
+  door.position.set(0, 0.55, 1.16);
+  group.add(door);
+
+  // Pontais do alpendre frontal
+  [-0.45, 0.45].forEach((px) => {
+    const pGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.95, 6);
+    const pMesh = new THREE.Mesh(pGeo, darkWoodMat);
+    pMesh.position.set(px, 0.5, 1.5);
+    pMesh.castShadow = true;
+    group.add(pMesh);
+  });
+
+  const awningGeo = new THREE.BoxGeometry(1.15, 0.08, 0.55);
+  const awning = new THREE.Mesh(awningGeo, thatchMat);
+  awning.position.set(0, 1.0, 1.4);
+  awning.rotation.x = 0.2;
+  awning.castShadow = true;
+  group.add(awning);
+
+  // 6. Elementos que comunicam visualmente "depósito central de recursos":
+  // A. Sacos e cestos de grãos (Alimento)
+  const sackMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.85 });
+  const sack1 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.16), sackMat);
+  sack1.position.set(0.95, 0.32, 1.3);
+  sack1.castShadow = true;
+  group.add(sack1);
+
+  const sack2 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.14), sackMat);
+  sack2.position.set(1.2, 0.3, 1.2);
+  sack2.castShadow = true;
+  group.add(sack2);
+
+  const sack3 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.13), sackMat);
+  sack3.position.set(1.08, 0.5, 1.25);
+  sack3.castShadow = true;
+  group.add(sack3);
+
+  // B. Toras de madeira empilhadas na lateral (Madeira)
+  const logGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.7, 6);
+  [
+    [-1.75, 0.18, 0.3],
+    [-1.75, 0.18, 0.5],
+    [-1.75, 0.28, 0.4],
+  ].forEach(([lx, ly, lz]) => {
+    const log = new THREE.Mesh(logGeo, woodMat);
+    log.rotation.x = Math.PI / 2;
+    log.position.set(lx, ly, lz);
+    log.castShadow = true;
+    group.add(log);
+  });
+
+  // C. Blocos talhados de calcário na lateral oposta (Pedra)
+  const blockGeo = new THREE.BoxGeometry(0.3, 0.2, 0.25);
+  const b1 = new THREE.Mesh(blockGeo, stoneMat);
+  b1.position.set(1.7, 0.22, -0.4);
+  b1.castShadow = true;
+  group.add(b1);
+  const b2 = new THREE.Mesh(blockGeo, stoneMat);
+  b2.position.set(1.7, 0.4, -0.4);
+  b2.rotation.y = 0.2;
+  b2.castShadow = true;
+  group.add(b2);
+
+  // D. Vasos e ânforas de cerâmica na varanda (Argila)
+  const amphoraMat = new THREE.MeshStandardMaterial({ color: 0xc2410c, roughness: 0.7 });
+  const pot1 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.06, 0.28, 8), amphoraMat);
+  pot1.position.set(-0.85, 0.32, 1.35);
+  pot1.castShadow = true;
+  group.add(pot1);
+
+  const pot2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.05, 0.22, 8), amphoraMat);
+  pot2.position.set(-1.08, 0.29, 1.25);
+  pot2.castShadow = true;
+  group.add(pot2);
+
+  // E. Estandarte tribal de liderança
+  const poleGeo = new THREE.CylinderGeometry(0.04, 0.04, 1.8, 6);
+  const pole = new THREE.Mesh(poleGeo, darkWoodMat);
+  pole.position.set(1.4, 0.9, 1.45);
+  pole.castShadow = true;
+  group.add(pole);
+
+  const bannerGeo = new THREE.BoxGeometry(0.35, 0.25, 0.02);
+  const bannerMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.8 });
+  const banner = new THREE.Mesh(bannerGeo, bannerMat);
+  banner.position.set(1.22, 1.55, 1.45);
+  group.add(banner);
+
+  return group;
+}
+
