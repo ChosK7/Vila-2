@@ -59,10 +59,19 @@ import {
   FacilityPlacementControls,
   FacilityMoveToggleButton,
 } from '../components/FacilityPlacementControls';
+import {
+  TimeOfDay,
+  TIME_OF_DAY_INFO,
+  resolveTimeOfDay,
+  createSceneLighting,
+  createNightStars,
+  createNightMoon,
+  updateLightingForTimeOfDay,
+} from './LightingDayCycle';
 
 export { DEFAULT_FACILITY_CONFIGS };
-
-export type { VillagerAgent, IdleActionType };
+export type { VillagerAgent, IdleActionType, TimeOfDay };
+export { TIME_OF_DAY_INFO };
 
 interface ThreeVillageSceneProps {
   gameState: GameState;
@@ -71,93 +80,6 @@ interface ThreeVillageSceneProps {
   onVillagerGathers?: (resource: 'food' | 'wood' | 'stone' | 'clay', amount: number) => void;
   onUpdateVillagerSchedule?: (villagerId: string, workStart: number, workEnd: number) => void;
 }
-
-export type TimeOfDay = 'day' | 'sunset' | 'night' | 'dawn';
-
-export const TIME_OF_DAY_INFO: Record<
-  TimeOfDay,
-  { name: string; icon: string; description: string }
-> = {
-  day: { name: 'Dia Pleno', icon: '☀️', description: 'Sol radiante e céu azul no vale fértil' },
-  sunset: { name: 'Pôr do Sol', icon: '🌇', description: 'Crepúsculo âmbar e sombras longas' },
-  night: { name: 'Noite Sombria', icon: '🌙', description: 'Tons azulados, céu estrelado e fogueira viva' },
-  dawn: { name: 'Alvorada', icon: '🌅', description: 'Primeiros raios de sol e orvalho matinal' },
-};
-
-interface LightingPreset {
-  skyColor: THREE.Color;
-  fogColor: THREE.Color;
-  fogDensity: number;
-  ambientColor: THREE.Color;
-  ambientIntensity: number;
-  sunColor: THREE.Color;
-  sunIntensity: number;
-  sunPos: THREE.Vector3;
-  groundColor: THREE.Color;
-  campfireLightIntensity: number;
-  starsOpacity: number;
-  moonOpacity: number;
-}
-
-const LIGHTING_PRESETS: Record<TimeOfDay, LightingPreset> = {
-  day: {
-    skyColor: new THREE.Color(0xdce7eb),
-    fogColor: new THREE.Color(0xdce7eb),
-    fogDensity: 0.022,
-    ambientColor: new THREE.Color(0xfef3c7),
-    ambientIntensity: 0.95,
-    sunColor: new THREE.Color(0xffedd5),
-    sunIntensity: 1.65,
-    sunPos: new THREE.Vector3(15, 25, 15),
-    groundColor: new THREE.Color(0xdec69a),
-    campfireLightIntensity: 1.2,
-    starsOpacity: 0.0,
-    moonOpacity: 0.0,
-  },
-  sunset: {
-    skyColor: new THREE.Color(0xeb8e55),
-    fogColor: new THREE.Color(0xf5a575),
-    fogDensity: 0.024,
-    ambientColor: new THREE.Color(0xfde047),
-    ambientIntensity: 0.65,
-    sunColor: new THREE.Color(0xf97316),
-    sunIntensity: 1.35,
-    sunPos: new THREE.Vector3(26, 11, -12),
-    groundColor: new THREE.Color(0xd9a26c),
-    campfireLightIntensity: 2.2,
-    starsOpacity: 0.25,
-    moonOpacity: 0.35,
-  },
-  night: {
-    // tons azulados e sombrios de noite
-    skyColor: new THREE.Color(0x0f172a),
-    fogColor: new THREE.Color(0x1e293b),
-    fogDensity: 0.028,
-    ambientColor: new THREE.Color(0x172554),
-    ambientIntensity: 0.32,
-    sunColor: new THREE.Color(0x60a5fa), // luar azulado límpido
-    sunIntensity: 0.38,
-    sunPos: new THREE.Vector3(-18, 26, -18),
-    groundColor: new THREE.Color(0x55493d),
-    campfireLightIntensity: 3.8, // fogueira brilhando intensamente no escuro!
-    starsOpacity: 0.92,
-    moonOpacity: 1.0,
-  },
-  dawn: {
-    skyColor: new THREE.Color(0xc084fc),
-    fogColor: new THREE.Color(0xedd5f5),
-    fogDensity: 0.024,
-    ambientColor: new THREE.Color(0xfef3c7),
-    ambientIntensity: 0.72,
-    sunColor: new THREE.Color(0xfde047),
-    sunIntensity: 1.25,
-    sunPos: new THREE.Vector3(-22, 12, 16),
-    groundColor: new THREE.Color(0xcbb88b),
-    campfireLightIntensity: 1.6,
-    starsOpacity: 0.15,
-    moonOpacity: 0.15,
-  },
-};
 
 export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   gameState,
@@ -315,18 +237,10 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   // Time of Day State driven directly by continuous gameState.gameHour
   const [timeOfDayOverride, setTimeOfDayOverride] = useState<'auto' | TimeOfDay>('auto');
 
-  const effectiveTimeOfDay: TimeOfDay = useMemo(() => {
-    if (timeOfDayOverride !== 'auto') return timeOfDayOverride;
-    const hour = gameState.gameHour ?? 6.0;
-    // 05:30 - 08:00 -> Alvorada / Amanhecer
-    if (hour >= 5.5 && hour < 8.0) return 'dawn';
-    // 08:00 - 17.5 -> Dia Pleno
-    if (hour >= 8.0 && hour < 17.5) return 'day';
-    // 17.5 - 19.5 -> Pôr do Sol / Entardecer
-    if (hour >= 17.5 && hour < 19.5) return 'sunset';
-    // 19.5 - 05.30 -> Noite Sombria
-    return 'night';
-  }, [gameState.gameHour, timeOfDayOverride]);
+  const effectiveTimeOfDay: TimeOfDay = useMemo(
+    () => resolveTimeOfDay(gameState.gameHour ?? 6.0, timeOfDayOverride),
+    [gameState.gameHour, timeOfDayOverride]
+  );
 
   const currentRoutine = useMemo(() => {
     return getCelestialTimeInfo(gameState.gameHour ?? 6.0).routine;
@@ -440,21 +354,9 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     container.appendChild(renderer.domElement);
 
     // Lights
-    const ambientLight = new THREE.AmbientLight(0xfef3c7, 0.9);
+    const { ambientLight, directionalLight: dirLight } = createSceneLighting();
     scene.add(ambientLight);
     ambientLightRef.current = ambientLight;
-
-    const dirLight = new THREE.DirectionalLight(0xffedd5, 1.6);
-    dirLight.position.set(15, 25, 15);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.width = 2048;
-    dirLight.shadow.mapSize.height = 2048;
-    dirLight.shadow.camera.near = 0.5;
-    dirLight.shadow.camera.far = 60;
-    dirLight.shadow.camera.left = -20;
-    dirLight.shadow.camera.right = 20;
-    dirLight.shadow.camera.top = 20;
-    dirLight.shadow.camera.bottom = -20;
     scene.add(dirLight);
     dirLightRef.current = dirLight;
 
@@ -536,40 +438,12 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     moveRingRef.current = moveRing;
 
     // Night Celestial Features: Stars dome and Glowing Moon
-    const starCount = 380;
-    const starGeometry = new THREE.BufferGeometry();
-    const starPositions = new Float32Array(starCount * 3);
-    for (let i = 0; i < starCount; i++) {
-      const radius = 36 + Math.random() * 14;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(Math.random() * 0.8 + 0.15); // upper sky hemisphere
-      starPositions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
-      starPositions[i * 3 + 1] = radius * Math.cos(phi);
-      starPositions[i * 3 + 2] = radius * Math.sin(phi) * Math.sin(theta);
-    }
-    starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    const starMaterial = new THREE.PointsMaterial({
-      color: 0xffffff,
-      size: 0.9,
-      transparent: true,
-      opacity: 0,
-      sizeAttenuation: true,
-    });
-    const stars = new THREE.Points(starGeometry, starMaterial);
-    stars.name = 'night_stars';
+    const stars = createNightStars();
     scene.add(stars);
     starsPointsRef.current = stars;
 
     // Stylized glowing Moon in night sky
-    const moonGeo = new THREE.SphereGeometry(1.6, 16, 16);
-    const moonMat = new THREE.MeshBasicMaterial({
-      color: 0xe0f2fe,
-      transparent: true,
-      opacity: 0,
-    });
-    const moon = new THREE.Mesh(moonGeo, moonMat);
-    moon.position.set(-22, 28, -20);
-    moon.name = 'night_moon';
+    const moon = createNightMoon();
     scene.add(moon);
     moonMeshRef.current = moon;
 
@@ -732,119 +606,26 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       }
 
       // Smooth Atmospheric Lighting & Day/Night Transition
-      const targetTimeOfDay = effectiveTimeOfDayRef.current;
-      const targetPreset = LIGHTING_PRESETS[targetTimeOfDay];
+      const campfireLight = (campfireGroupRef.current?.getObjectByName(
+        'campfirePointLight'
+      ) as THREE.PointLight | null) ?? null;
 
-      if (targetPreset) {
-        // Lerp Sky background color smoothly
-        currentSkyColorRef.current.lerp(targetPreset.skyColor, 0.04);
-        scene.background = currentSkyColorRef.current;
-
-        // Lerp Fog color and density smoothly
-        if (scene.fog && scene.fog instanceof THREE.FogExp2) {
-          currentFogColorRef.current.lerp(targetPreset.fogColor, 0.04);
-          scene.fog.color.copy(currentFogColorRef.current);
-          scene.fog.density = THREE.MathUtils.lerp(
-            scene.fog.density,
-            targetPreset.fogDensity,
-            0.04
-          );
-        }
-
-        // Lerp Ambient Light color and intensity
-        if (ambientLightRef.current) {
-          ambientLightRef.current.color.lerp(targetPreset.ambientColor, 0.04);
-          ambientLightRef.current.intensity = THREE.MathUtils.lerp(
-            ambientLightRef.current.intensity,
-            targetPreset.ambientIntensity,
-            0.04
-          );
-        }
-
-        // Lerp Directional Light (Sun/Moon) color, intensity, and orbit position
-        if (dirLightRef.current) {
-          dirLightRef.current.color.lerp(targetPreset.sunColor, 0.04);
-          dirLightRef.current.intensity = THREE.MathUtils.lerp(
-            dirLightRef.current.intensity,
-            targetPreset.sunIntensity,
-            0.04
-          );
-
-          // Calculate continuous sun/moon position in the sky based on gameHour
-          const h = ((gameState.gameHour ?? 6.0) % 24 + 24) % 24;
-          let celestialPos = targetPreset.sunPos;
-          if (h >= 5.5 && h < 19.5) {
-            // Daytime sun arc: rises in east, reaches peak at noon (12:00), sets in west
-            const sunProgress = (h - 5.5) / 14.0;
-            const sunAngle = sunProgress * Math.PI;
-            const sunX = -Math.cos(sunAngle) * 26;
-            const sunY = Math.max(3, Math.sin(sunAngle) * 28);
-            const sunZ = 12 - sunProgress * 6;
-            celestialPos = new THREE.Vector3(sunX, sunY, sunZ);
-          } else {
-            // Nighttime moon arc
-            const nightH = h >= 19.5 ? h - 19.5 : h + 4.5;
-            const moonProgress = nightH / 10.0;
-            const moonAngle = moonProgress * Math.PI;
-            const moonX = -Math.cos(moonAngle) * 24;
-            const moonY = Math.max(4, Math.sin(moonAngle) * 26);
-            const moonZ = -14;
-            celestialPos = new THREE.Vector3(moonX, moonY, moonZ);
-          }
-          dirLightRef.current.position.lerp(celestialPos, 0.03);
-        }
-
-        // Lerp Ground plane tint
-        if (groundMatRef.current) {
-          groundMatRef.current.color.lerp(targetPreset.groundColor, 0.04);
-        }
-
-        // Stars celestial rotation and smooth fade in/out
-        if (starsPointsRef.current) {
-          starsPointsRef.current.rotation.y = time * 0.003;
-          const starsMat = starsPointsRef.current.material as THREE.PointsMaterial;
-          starsMat.opacity = THREE.MathUtils.lerp(
-            starsMat.opacity,
-            targetPreset.starsOpacity,
-            0.04
-          );
-          starsPointsRef.current.visible = starsMat.opacity > 0.01;
-        }
-
-        // Moon smooth fade in/out and celestial arc
-        if (moonMeshRef.current) {
-          const moonMat = moonMeshRef.current.material as THREE.MeshBasicMaterial;
-          moonMat.opacity = THREE.MathUtils.lerp(
-            moonMat.opacity,
-            targetPreset.moonOpacity,
-            0.04
-          );
-          moonMeshRef.current.visible = moonMat.opacity > 0.01;
-          const h = ((gameState.gameHour ?? 6.0) % 24 + 24) % 24;
-          const nightH = h >= 19.5 ? h - 19.5 : h + 4.5;
-          const moonProgress = nightH / 10.0;
-          const moonAngle = moonProgress * Math.PI;
-          moonMeshRef.current.position.x = -Math.cos(moonAngle) * 26;
-          moonMeshRef.current.position.y = Math.sin(moonAngle) * 28 + 4;
-          moonMeshRef.current.position.z = -20;
-        }
-
-        // Campfire PointLight: extra warm amber illumination and flicker at night!
-        if (campfireGroupRef.current) {
-          const campfireLight = campfireGroupRef.current.getObjectByName(
-            'campfirePointLight'
-          ) as THREE.PointLight;
-          if (campfireLight) {
-            const flicker = Math.sin(time * 15) * 0.35 + Math.cos(time * 23) * 0.15;
-            const targetCampfireIntensity = targetPreset.campfireLightIntensity + flicker;
-            campfireLight.intensity = THREE.MathUtils.lerp(
-              campfireLight.intensity,
-              targetCampfireIntensity,
-              0.08
-            );
-          }
-        }
-      }
+      updateLightingForTimeOfDay(
+        effectiveTimeOfDayRef.current,
+        {
+          scene,
+          ambientLight: ambientLightRef.current,
+          directionalLight: dirLightRef.current,
+          groundMaterial: groundMatRef.current,
+          stars: starsPointsRef.current,
+          moon: moonMeshRef.current,
+          campfireLight,
+          currentSkyColor: currentSkyColorRef.current,
+          currentFogColor: currentFogColorRef.current,
+          gameHour: gameStateRef.current.gameHour,
+        },
+        time
+      );
 
       // Update 3D Villagers movement and animations (freezes simulation when paused)
       if (!gameStatePausedRef.current) {
