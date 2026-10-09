@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { decimalToTimeString, timeStringToDecimal } from '../game/ScheduleSystem';
 import { chooseVillagerDecision, chooseVillagerActivity, VillagerActivity } from '../game/VillagerAI';
+import { createFacilityNodes } from '../simulation/FacilityRouting';
 import { getWorkerDeliveryAmount } from '../game/ResourceSystem';
 
 interface ThreeVillageSceneProps {
@@ -410,52 +411,15 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   }, [gameState]);
 
   // Resource nodes positions dynamically linked to facility positions and built structures
-  const hasGranary = (gameState.buildings.granary?.count || 0) > 0;
-  const hasCookingPit = (gameState.buildings.cooking_pit?.count || 0) > 0;
-  const hasSawmill = (gameState.buildings.sawmill?.count || 0) > 0;
-  const hasStoneworks = (gameState.buildings.stoneworks?.count || 0) > 0;
-  const hasPotteryKiln = (gameState.buildings.pottery_kiln?.count || 0) > 0;
-
-  const defaultMaterialPos = { x: 1.8, z: 0.8 };
-
-  const RESOURCE_NODES = useMemo(() => ({
-    wheat: getNodePos('wheat', { x: -6.5, z: 4.0 }),
-    wood: getNodePos('wood', { x: -6.0, z: -5.5 }),
-    stone: getNodePos('stone', { x: 6.5, z: -4.5 }),
-    clay: getNodePos('clay', { x: 7.0, z: 3.5 }),
-    foodStorage: hasGranary
-      ? getNodePos('granary', { x: 0, z: 4.0 })
-      : getNodePos('campfire', { x: 0, z: 1.2 }),
-    mealArea: hasCookingPit
-      ? getNodePos('cooking_pit', { x: -1.2, z: 1.5 })
-      : getNodePos('campfire', { x: 0, z: -0.8 }),
-    woodStorage: hasSawmill
-      ? getNodePos('sawmill', { x: -3.8, z: -4.5 })
-      : getNodePos('campfire', defaultMaterialPos),
-    stoneStorage: hasStoneworks
-      ? getNodePos('stoneworks', { x: 4.2, z: -3.5 })
-      : getNodePos('campfire', defaultMaterialPos),
-    clayStorage: hasPotteryKiln
-      ? getNodePos('pottery_kiln', { x: 4.8, z: 2.5 })
-      : getNodePos('campfire', defaultMaterialPos),
-    materialStorage: getNodePos('campfire', defaultMaterialPos),
-    storage: getNodePos('campfire', { x: 0, z: 1.2 }),
-    campfire: getNodePos('campfire', { x: 0, z: -0.8 }),
-    buildersite: getNodePos('buildersite', { x: 3.0, z: 0 }),
-    elderDesk: getNodePos('elderDesk', { x: -2.2, z: -2.8 }),
-    guardPost: getNodePos('guardPost', { x: 5.5, z: 5.0 }),
-  }), [
+  const RESOURCE_NODES = useMemo(() => {
+    return createFacilityNodes(gameState, getNodePos);
+  }, [
     facilityPositions,
     gameState.buildings.granary?.count,
     gameState.buildings.cooking_pit?.count,
     gameState.buildings.sawmill?.count,
     gameState.buildings.stoneworks?.count,
     gameState.buildings.pottery_kiln?.count,
-    hasGranary,
-    hasCookingPit,
-    hasSawmill,
-    hasStoneworks,
-    hasPotteryKiln,
   ]);
 
   const resourceNodesRef = useRef(RESOURCE_NODES);
