@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { GameState, JobType, Villager } from './types/game';
-import { INITIAL_STATE, RANDOM_EVENTS } from './data/initialData';
+import { INITIAL_STATE, RANDOM_EVENTS, INITIAL_BUILDINGS } from './data/initialData';
 import { ThreeVillageScene } from './three/ThreeVillageScene';
 import { ExpandableResourceBar } from './components/ExpandableResourceBar';
 import { TaskAssignmentBar } from './components/TaskAssignmentBar';

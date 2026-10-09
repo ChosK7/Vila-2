@@ -7,22 +7,13 @@ import {
   createBuilderSiteMesh,
   createCampfireMesh,
   createClayPitMesh,
-  createCookingPitMesh,
   createElderDeskMesh,
-  createGranaryMesh,
   createGuardPostMesh,
-  createHutMesh,
-  createLonghouseMesh,
-  createPotteryKilnMesh,
   createRockQuarryMesh,
-  createSawmillMesh,
-  createStoneDwellingMesh,
-  createStoneworksMesh,
   createTreeMesh,
-  createWellMesh,
   createWheatPatchMesh,
-  createZigguratMesh,
 } from './buildingMeshes';
+import { syncSceneBuildings } from './SceneBuildings';
 import { audio } from '../utils/audio';
 import {
   getTerrainHeight,
@@ -248,6 +239,18 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     }
     if ((buildings.village_well?.count || 0) > 0) {
       list.push({ id: 'village_well', name: 'Poço', icon: '💧', description: 'Poço comunitário de água potável' });
+    }
+    if ((buildings.cooking_pit?.count || 0) > 0) {
+      list.push({ id: 'cooking_pit', name: 'Refeitório', icon: '🍲', description: DEFAULT_FACILITY_CONFIGS.cooking_pit?.description || 'Refeitório comunitário' });
+    }
+    if ((buildings.sawmill?.count || 0) > 0) {
+      list.push({ id: 'sawmill', name: 'Serraria', icon: '🪓', description: DEFAULT_FACILITY_CONFIGS.sawmill?.description || 'Serraria de madeira' });
+    }
+    if ((buildings.stoneworks?.count || 0) > 0) {
+      list.push({ id: 'stoneworks', name: 'Cantaria', icon: '🔨', description: DEFAULT_FACILITY_CONFIGS.stoneworks?.description || 'Oficina de pedreiro' });
+    }
+    if ((buildings.pottery_kiln?.count || 0) > 0) {
+      list.push({ id: 'pottery_kiln', name: 'Olaria', icon: '🏺', description: DEFAULT_FACILITY_CONFIGS.pottery_kiln?.description || 'Forno de cerâmica' });
     }
     if ((buildings.longhouse?.count || 0) > 0) {
       list.push({ id: 'longhouse', name: 'Casa Longa', icon: '🏛️', description: 'Grande salão comunal' });
@@ -913,73 +916,13 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   // 2. Synchronize Buildings in 3D Scene
   useEffect(() => {
     if (!buildingsGroupRef.current) return;
-    const bg = buildingsGroupRef.current;
-
-    // Clear old building meshes
-    while (bg.children.length > 0) {
-      bg.remove(bg.children[0]);
-    }
-
-    // Clear building keys from facilityGroupsRef
-    ['shelter_1', 'shelter_2', 'shelter_3', 'shelter_4', 'granary', 'village_well', 'longhouse', 'ziggurat'].forEach((id) => {
-      facilityGroupsRef.current.delete(id);
+    syncSceneBuildings({
+      buildingsGroup: buildingsGroupRef.current,
+      facilityGroups: facilityGroupsRef.current,
+      gameState,
+      facilityPositions,
+      getTerrainHeight,
     });
-
-    const { buildings, zigguratStagesCompleted } = gameState;
-
-    const registerBuilding = (id: string, mesh: THREE.Group, fallbackPos: { x: number; z: number }) => {
-      const p = facilityPositions[id] || fallbackPos;
-      const y = getTerrainHeight(p.x, p.z);
-      mesh.position.set(p.x, y, p.z);
-      mesh.name = `facility-${id}`;
-      bg.add(mesh);
-      facilityGroupsRef.current.set(id, mesh);
-    };
-
-    // Starter or built huts with visual level
-    const hutsCount = Math.max(1, buildings.hut?.count || 1);
-    const hutLevel = Math.max(1, buildings.hut?.level || 1);
-    const stoneDwellingsCount = buildings.stone_dwelling?.count || 0;
-
-    // Main starter shelter (Cabana 1)
-    if (stoneDwellingsCount > 0) {
-      registerBuilding('shelter_1', createStoneDwellingMesh(), { x: -2.8, z: -1.8 });
-    } else {
-      registerBuilding('shelter_1', createHutMesh(hutLevel), { x: -2.8, z: -1.8 });
-    }
-
-    // Additional houses (Cabanas 2, 3, 4)
-    if (hutsCount > 1 || stoneDwellingsCount > 1) {
-      const hut2 = stoneDwellingsCount > 1 ? createStoneDwellingMesh() : createHutMesh(hutLevel);
-      registerBuilding('shelter_2', hut2, { x: -2.8, z: 1.8 });
-    }
-    if (hutsCount > 2 || stoneDwellingsCount > 2) {
-      const hut3 = stoneDwellingsCount > 2 ? createStoneDwellingMesh() : createHutMesh(hutLevel);
-      registerBuilding('shelter_3', hut3, { x: 2.8, z: -2.0 });
-    }
-    if (hutsCount > 3) {
-      registerBuilding('shelter_4', createHutMesh(hutLevel), { x: 2.8, z: 2.0 });
-    }
-
-    // Granary
-    if ((buildings.granary?.count || 0) > 0) {
-      registerBuilding('granary', createGranaryMesh(), { x: 0, z: 4.0 });
-    }
-
-    // Well
-    if ((buildings.village_well?.count || 0) > 0) {
-      registerBuilding('village_well', createWellMesh(), { x: 0, z: -3.8 });
-    }
-
-    // Longhouse
-    if ((buildings.longhouse?.count || 0) > 0) {
-      registerBuilding('longhouse', createLonghouseMesh(), { x: 0, z: -1.0 });
-    }
-
-    // Ziggurat Monument
-    if ((buildings.ziggurat?.count || 0) > 0 || zigguratStagesCompleted > 0) {
-      registerBuilding('ziggurat', createZigguratMesh(Math.max(1, zigguratStagesCompleted)), { x: 0, z: -14.0 });
-    }
   }, [gameState.buildings, gameState.zigguratStagesCompleted, facilityPositions]);
 
   // 3. Synchronize 3D Villagers
