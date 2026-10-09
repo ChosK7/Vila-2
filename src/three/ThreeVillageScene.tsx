@@ -41,6 +41,18 @@ import {
   assignAgentJobBehavior,
   updateVillagersAnimation,
 } from '../simulation/VillagerRuntime';
+import {
+  CameraOrbitState,
+  CameraPreset,
+  CAMERA_PRESETS,
+  updateCameraPosition,
+  rotateCamera,
+  panCamera,
+  zoomCamera,
+  zoomCameraByDelta,
+  applyCameraPreset,
+  updateFollowCamera,
+} from './CameraController';
 
 export type { VillagerAgent, IdleActionType };
 
@@ -307,7 +319,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
 
   // Camera state refs
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const camAngleRef = useRef({ theta: Math.PI / 4, phi: Math.PI / 3.2, radius: 14 });
+  const camAngleRef = useRef<CameraOrbitState>({ theta: Math.PI / 4, phi: Math.PI / 3.2, radius: 14 });
   const camTargetRef = useRef(new THREE.Vector3(0, 0.8, 0));
   const isDraggingRef = useRef(false);
   const hasDraggedRef = useRef(false);
@@ -367,10 +379,14 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
 
   // Follow camera mode
   const [followVillager, setFollowVillager] = useState(false);
+  const followVillagerRef = useRef(followVillager);
+  useEffect(() => {
+    followVillagerRef.current = followVillager;
+  }, [followVillager]);
 
   // Camera presets menu state
   const [isCameraMenuOpen, setIsCameraMenuOpen] = useState(false);
-  const [activeCameraPreset, setActiveCameraPreset] = useState<string>('overview');
+  const [activeCameraPreset, setActiveCameraPreset] = useState<CameraPreset>('overview');
 
   const gameStatePausedRef = useRef(gameState.isTimePaused ?? false);
   useEffect(() => {
@@ -442,7 +458,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     // Camera
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
     cameraRef.current = camera;
-    updateCameraPosition();
+    updateCameraPosition(camera, camTargetRef.current, camAngleRef.current);
 
     // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -874,12 +890,20 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
         updateVillagersAnimation(agentsRef.current, delta, time, getRuntimeContext());
       }
 
-      // Camera Follow logic if enabled
-      if (followVillager && selectedVillagerId && cameraRef.current) {
-        const agent = agentsRef.current.get(selectedVillagerId);
+      // Camera Follow logic if enabled (using refs to eliminate stale state)
+      if (
+        followVillagerRef.current &&
+        selectedVillagerIdRef.current &&
+        cameraRef.current
+      ) {
+        const agent = agentsRef.current.get(selectedVillagerIdRef.current);
         if (agent) {
-          camTargetRef.current.lerp(agent.pos.clone().add(new THREE.Vector3(0, 0.8, 0)), 0.08);
-          updateCameraPosition();
+          updateFollowCamera(camTargetRef.current, agent.pos);
+          updateCameraPosition(
+            cameraRef.current,
+            camTargetRef.current,
+            camAngleRef.current
+          );
         }
       }
 
@@ -898,20 +922,6 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       }
     };
   }, []);
-
-  // Helper to recompute camera position based on angles
-  const updateCameraPosition = () => {
-    if (!cameraRef.current) return;
-    const { theta, phi, radius } = camAngleRef.current;
-    const target = camTargetRef.current;
-
-    const x = target.x + radius * Math.sin(phi) * Math.sin(theta);
-    const y = target.y + radius * Math.cos(phi);
-    const z = target.z + radius * Math.sin(phi) * Math.cos(theta);
-
-    cameraRef.current.position.set(x, y, z);
-    cameraRef.current.lookAt(target);
-  };
 
   // 2. Synchronize Buildings in 3D Scene
   useEffect(() => {
@@ -1041,20 +1051,13 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     dragStartRef.current = { x: e.clientX, y: e.clientY };
 
     if (isRightClickRef.current) {
-      // Pan camera target
-      const panSpeed = 0.015;
-      const angle = camAngleRef.current.theta;
-      camTargetRef.current.x -= (Math.cos(angle) * dx - Math.sin(angle) * dy) * panSpeed;
-      camTargetRef.current.z -= (Math.sin(angle) * dx + Math.cos(angle) * dy) * panSpeed;
+      panCamera(camTargetRef.current, camAngleRef.current, dx, dy);
     } else {
-      // Rotate camera
-      camAngleRef.current.theta -= dx * 0.007;
-      camAngleRef.current.phi = Math.max(
-        0.2,
-        Math.min(Math.PI / 2.1, camAngleRef.current.phi - dy * 0.007)
-      );
+      rotateCamera(camAngleRef.current, dx, dy);
     }
-    updateCameraPosition();
+    if (cameraRef.current) {
+      updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
+    }
   };
 
   const handleMouseUp = (e: React.MouseEvent) => {
@@ -1062,11 +1065,10 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   };
 
   const handleWheel = (e: React.WheelEvent) => {
-    camAngleRef.current.radius = Math.max(
-      5,
-      Math.min(32, camAngleRef.current.radius + e.deltaY * 0.02)
-    );
-    updateCameraPosition();
+    zoomCamera(camAngleRef.current, e.deltaY);
+    if (cameraRef.current) {
+      updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
+    }
   };
 
   // Touch Support (Single touch rotate, pinch zoom)
@@ -1092,12 +1094,10 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       }
       dragStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 
-      camAngleRef.current.theta -= dx * 0.007;
-      camAngleRef.current.phi = Math.max(
-        0.2,
-        Math.min(Math.PI / 2.1, camAngleRef.current.phi - dy * 0.007)
-      );
-      updateCameraPosition();
+      rotateCamera(camAngleRef.current, dx, dy);
+      if (cameraRef.current) {
+        updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
+      }
     } else if (e.touches.length === 2 && touchStartDistRef.current !== null) {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
@@ -1105,11 +1105,10 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       const pinchDelta = touchStartDistRef.current - currentDist;
       touchStartDistRef.current = currentDist;
 
-      camAngleRef.current.radius = Math.max(
-        5,
-        Math.min(32, camAngleRef.current.radius + pinchDelta * 0.05)
-      );
-      updateCameraPosition();
+      zoomCameraByDelta(camAngleRef.current, pinchDelta * 0.05);
+      if (cameraRef.current) {
+        updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
+      }
     }
   };
 
@@ -1220,49 +1219,18 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   };
 
   // Camera presets focused on task areas (tracking dynamic facility coordinates)
-  const resetCamera = (
-    preset: 'overview' | 'fields' | 'camp' | 'quarry' | 'forest' | 'clay' | 'builder'
-  ) => {
-    if (preset === 'overview') {
-      camAngleRef.current = { theta: Math.PI / 4, phi: Math.PI / 3.2, radius: 16 };
-      camTargetRef.current.set(0, 0.8, 0);
-    } else if (preset === 'fields') {
-      const p = facilityPositionsRef.current['wheat'] || { x: -6.5, z: 4.0 };
-      camAngleRef.current = { theta: Math.PI / 1.8, phi: Math.PI / 3.4, radius: 10 };
-      camTargetRef.current.set(p.x, getTerrainHeight(p.x, p.z) + 0.8, p.z);
-    } else if (preset === 'forest') {
-      const p = facilityPositionsRef.current['wood'] || { x: -6.0, z: -5.5 };
-      camAngleRef.current = { theta: Math.PI * 0.75, phi: Math.PI / 3.3, radius: 11 };
-      camTargetRef.current.set(p.x, getTerrainHeight(p.x, p.z) + 0.8, p.z);
-    } else if (preset === 'quarry') {
-      const p = facilityPositionsRef.current['stone'] || { x: 6.5, z: -4.5 };
-      camAngleRef.current = { theta: -Math.PI / 3, phi: Math.PI / 3.4, radius: 10 };
-      camTargetRef.current.set(p.x, getTerrainHeight(p.x, p.z) + 0.8, p.z);
-    } else if (preset === 'clay') {
-      const p = facilityPositionsRef.current['clay'] || { x: 7.0, z: 3.5 };
-      camAngleRef.current = { theta: -Math.PI * 0.65, phi: Math.PI / 3.3, radius: 10 };
-      camTargetRef.current.set(p.x, getTerrainHeight(p.x, p.z) + 0.8, p.z);
-    } else if (preset === 'builder') {
-      const p = facilityPositionsRef.current['buildersite'] || { x: 3.0, z: 0 };
-      camAngleRef.current = { theta: -Math.PI / 5, phi: Math.PI / 3.2, radius: 9 };
-      camTargetRef.current.set(p.x, getTerrainHeight(p.x, p.z) + 0.8, p.z);
-    } else if (preset === 'camp') {
-      const p = facilityPositionsRef.current['campfire'] || { x: 0, z: -0.8 };
-      camAngleRef.current = { theta: 0, phi: Math.PI / 3.0, radius: 8 };
-      camTargetRef.current.set(p.x, getTerrainHeight(p.x, p.z) + 0.8, p.z);
+  const resetCamera = (preset: CameraPreset) => {
+    applyCameraPreset(
+      preset,
+      camAngleRef.current,
+      camTargetRef.current,
+      facilityPositionsRef.current,
+      getTerrainHeight
+    );
+    if (cameraRef.current) {
+      updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
     }
-    updateCameraPosition();
   };
-
-  const CAMERA_PRESETS = [
-    { id: 'overview', label: 'Visão Geral', shortLabel: 'Geral', icon: '🎯' },
-    { id: 'camp', label: 'Centro & Fogueira', shortLabel: 'Centro', icon: '🛖' },
-    { id: 'fields', label: 'Campos de Trigo', shortLabel: 'Trigo', icon: '🌾' },
-    { id: 'forest', label: 'Floresta de Madeira', shortLabel: 'Floresta', icon: '🪵' },
-    { id: 'quarry', label: 'Pedreira de Rocha', shortLabel: 'Pedreira', icon: '🪨' },
-    { id: 'clay', label: 'Margem de Argila', shortLabel: 'Argila', icon: '🧱' },
-    { id: 'builder', label: 'Canteiro de Obras', shortLabel: 'Obras', icon: '🔨' },
-  ] as const;
 
   const selectedVillager = gameState.villagers.find((v) => v.id === selectedVillagerId);
 
@@ -1311,7 +1279,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
                   onClick={() => {
                     audio.playWood();
                     setActiveCameraPreset(p.id);
-                    resetCamera(p.id as any);
+                    resetCamera(p.id);
                     setIsCameraMenuOpen(false);
                   }}
                   className={`w-full px-2 py-1.5 text-xs font-bold rounded-lg flex items-center gap-2 transition-colors text-left cursor-pointer ${
