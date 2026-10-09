@@ -51,9 +51,12 @@ export function applyBuildingVegetationClearance(
 ): void {
   if (!undergrowthGroup || !undergrowthGroup.children) return;
 
+  const worldPos = new THREE.Vector3();
+
   undergrowthGroup.children.forEach((child) => {
-    const cx = child.position.x;
-    const cz = child.position.z;
+    child.getWorldPosition(worldPos);
+    const cx = worldPos.x;
+    const cz = worldPos.z;
 
     let isUnderBuilding = false;
     for (let i = 0; i < areas.length; i++) {

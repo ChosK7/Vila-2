@@ -127,6 +127,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   const [selectedFacilityId, setSelectedFacilityId] = useState<string | null>('wheat');
   const [moveToast, setMoveToast] = useState<string | null>(null);
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
+  const [moveStartedFromBuildingPanel, setMoveStartedFromBuildingPanel] = useState(false);
 
   const facilityGroupsRef = useRef<Map<string, THREE.Group>>(new Map());
   const moveRingRef = useRef<THREE.Mesh | null>(null);
@@ -899,12 +900,30 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     }
   }, [currentRoutine]);
 
-  // Synchronize villager pathing whenever facilities are moved
+  // Immediate rerouting of villagers when storage structures change (build/demolish) or facilities move
   useEffect(() => {
     agentsRef.current.forEach((agent) => {
-      assignAgentJobBehavior(agent, agent.villager.job, getRuntimeContext(), agentsRef.current, false);
+      if (agent.state === 'carrying_to_storage') {
+        if (agent.villager.job === 'farmer') {
+          agent.target.copy(RESOURCE_NODES.foodStorage);
+        } else if (agent.villager.job === 'lumberjack') {
+          agent.target.copy(RESOURCE_NODES.woodStorage);
+        } else if (agent.villager.job === 'quarryman') {
+          agent.target.copy(RESOURCE_NODES.stoneStorage);
+        } else if (agent.villager.job === 'potter') {
+          agent.target.copy(RESOURCE_NODES.clayStorage);
+        }
+      } else {
+        assignAgentJobBehavior(agent, agent.villager.job, getRuntimeContext(), agentsRef.current, false);
+      }
     });
-  }, [facilityPositions]);
+  }, [
+    RESOURCE_NODES,
+    gameState.buildings.granary?.count,
+    gameState.buildings.sawmill?.count,
+    gameState.buildings.stoneworks?.count,
+    gameState.buildings.pottery_kiln?.count,
+  ]);
 
   // 5. Mouse / Touch Orbit Controls & Raycasting Selection
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -932,6 +951,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
             isLongPressTriggeredRef.current = true;
             isDraggingRef.current = false;
             audio.playStone();
+            setMoveStartedFromBuildingPanel(true);
             setIsMoveMode(true);
             setSelectedFacilityId(targetId);
             setSelectedBuildingId(null);
@@ -1017,6 +1037,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
               isLongPressTriggeredRef.current = true;
               isDraggingRef.current = false;
               audio.playStone();
+              setMoveStartedFromBuildingPanel(true);
               setIsMoveMode(true);
               setSelectedFacilityId(targetId);
               setSelectedBuildingId(null);
@@ -1135,6 +1156,13 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
           audio.playStone();
           const cfg = DEFAULT_FACILITY_CONFIGS[selectedFacilityId];
           setMoveToast(`✓ ${cfg?.name || selectedFacilityId} movido para (${newX}, ${newZ})!`);
+
+          if (moveStartedFromBuildingPanel) {
+            setIsMoveMode(false);
+            setSelectedFacilityId(null);
+            setSelectedBuildingId(null);
+            setMoveStartedFromBuildingPanel(false);
+          }
           return;
         }
       }
@@ -1166,13 +1194,26 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       }
     }
 
-    // 2. Direct click on buildings or village facilities
+    // 2. Direct click on buildings or village facilities (NÃO abrir painel para resource nodes)
     const clickedFacilityId = findFacilityFromRaycast(raycaster, facilityGroupsRef.current);
     if (clickedFacilityId) {
-      audio.playWood();
-      onSelectVillager(null);
-      setSelectedBuildingId(clickedFacilityId);
-      return;
+      const isResourceNode = [
+        'wheat',
+        'wood',
+        'stone',
+        'clay',
+        'campfire',
+        'buildersite',
+        'elderDesk',
+        'guardPost',
+      ].includes(clickedFacilityId);
+
+      if (!isResourceNode) {
+        audio.playWood();
+        onSelectVillager(null);
+        setSelectedBuildingId(clickedFacilityId);
+        return;
+      }
     }
 
     // Raycast ground / nodes if a villager is already selected to command them!
@@ -1372,6 +1413,18 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
             facilityDescription={cfg.description}
             canDemolish={canDemolish}
             demolishReason={demolishReason}
+            onMove={() => {
+              setMoveStartedFromBuildingPanel(true);
+              setIsMoveMode(true);
+              setSelectedFacilityId(selectedBuildingId);
+              setSelectedBuildingId(null);
+              onSelectVillager(null);
+
+              const currentCfg = DEFAULT_FACILITY_CONFIGS[selectedBuildingId];
+              setMoveToast(
+                `Selecionado: ${currentCfg?.name || selectedBuildingId}. Clique no solo para reposicionar.`
+              );
+            }}
             onDemolish={() => {
               onDemolishBuilding?.(buildingKey);
               setSelectedBuildingId(null);

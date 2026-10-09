@@ -24,7 +24,7 @@ export const BuildingInteractionPanel: React.FC<BuildingInteractionPanelProps> =
   facilityDescription,
   canDemolish,
   demolishReason,
-  onMove: _onMove,
+  onMove,
   onDemolish,
   onClose,
 }) => {
@@ -106,6 +106,18 @@ export const BuildingInteractionPanel: React.FC<BuildingInteractionPanelProps> =
       ) : (
         /* Action Buttons */
         <div className="flex flex-col gap-2">
+          <button
+            onClick={() => {
+              audio.playWood();
+              onMove?.();
+            }}
+            className="w-full py-2 px-3 rounded-xl border-2 border-[#33261D] bg-amber-400 hover:bg-amber-500 text-stone-950 font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer"
+            title="Mover esta estrutura no terreno"
+          >
+            <Move size={14} />
+            <span>Mover Estrutura</span>
+          </button>
+
           <button
             onClick={() => {
               if (canDemolish) {
