@@ -204,3 +204,84 @@ export function startBuildingConstruction(
     updatedResources,
   };
 }
+
+/**
+ * Demole uma construção erguida da vila respeitando regras de população e permanência.
+ * Diminui count em exatamente 1 sem devolução de recursos (sem refund).
+ */
+export function demolishBuilding(
+  buildings: Record<string, Building>,
+  buildingId: string,
+  villagerCount: number,
+  villageLevel: number = 1
+): {
+  success: boolean;
+  reason?: string;
+  updatedBuildings: Record<string, Building>;
+} {
+  if (buildingId === 'village_hall') {
+    return {
+      success: false,
+      reason: 'A Sede da Vila é permanente.',
+      updatedBuildings: buildings,
+    };
+  }
+
+  if (buildingId === 'ziggurat') {
+    return {
+      success: false,
+      reason: 'Monumentos não podem ser demolidos.',
+      updatedBuildings: buildings,
+    };
+  }
+
+  const building = buildings[buildingId];
+  if (!building) {
+    return {
+      success: false,
+      reason: 'Construção não encontrada.',
+      updatedBuildings: buildings,
+    };
+  }
+
+  if (building.count <= 0) {
+    return {
+      success: false,
+      reason: 'Esta construção ainda não foi erguida.',
+      updatedBuildings: buildings,
+    };
+  }
+
+  if (building.constructionTurnsLeft > 0) {
+    return {
+      success: false,
+      reason: 'Não é possível demolir uma construção em andamento.',
+      updatedBuildings: buildings,
+    };
+  }
+
+  // Se for moradia, checar se a capacidade resultante atende à população atual
+  const hypotheticalBuildings: Record<string, Building> = {
+    ...buildings,
+    [buildingId]: {
+      ...building,
+      count: building.count - 1,
+    },
+  };
+
+  if (building.category === 'housing') {
+    const resultingCap = calculateHousingCapacity(hypotheticalBuildings, villageLevel);
+    if (resultingCap < villagerCount) {
+      return {
+        success: false,
+        reason: 'Não há moradias suficientes para realocar os aldeões.',
+        updatedBuildings: buildings,
+      };
+    }
+  }
+
+  return {
+    success: true,
+    updatedBuildings: hypotheticalBuildings,
+  };
+}

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { GameState, JobType, Villager } from '../types/game';
+import { GameState, JobType, Villager, Building } from '../types/game';
 import { CharacterRig, createCharacterMesh, setupToolForJob } from './characterMesh';
 import { getCelestialTimeInfo, DailyRoutine } from '../utils/timeCycle';
 import {
@@ -13,7 +13,7 @@ import {
   createTreeMesh,
   createWheatPatchMesh,
 } from './buildingMeshes';
-import { syncSceneBuildings } from './SceneBuildings';
+import { syncSceneBuildings, BUILDING_FALLBACK_POSITIONS } from './SceneBuildings';
 import { audio } from '../utils/audio';
 import {
   getTerrainHeight,
@@ -21,11 +21,18 @@ import {
   createUndergrowthVegetationGroup,
 } from './environmentMeshes';
 import {
+  applyBuildingVegetationClearance,
+  getBuildingClearanceRadius,
+  ClearanceArea,
+} from './VegetationClearance';
+import { calculateHousingCapacity } from '../game/BuildingSystem';
+import { BuildingInteractionPanel } from '../components/BuildingInteractionPanel';
+import {
   Eye,
   ChevronDown,
 } from 'lucide-react';
 import { decimalToTimeString, timeStringToDecimal } from '../game/ScheduleSystem';
-import { createFacilityNodes } from '../simulation/FacilityRouting';
+import { createFacilityNodes, DEFAULT_FACILITY_FALLBACKS } from '../simulation/FacilityRouting';
 import {
   VillagerAgent,
   IdleActionType,
@@ -57,7 +64,6 @@ import {
 } from './FacilityPlacement';
 import {
   FacilityPlacementControls,
-  FacilityMoveToggleButton,
 } from '../components/FacilityPlacementControls';
 import {
   TimeOfDay,
@@ -73,12 +79,20 @@ export { DEFAULT_FACILITY_CONFIGS };
 export type { VillagerAgent, IdleActionType, TimeOfDay };
 export { TIME_OF_DAY_INFO };
 
+function resolveBuildingKey(targetId: string, buildings: Record<string, Building>): string {
+  if (targetId.startsWith('shelter_')) {
+    return (buildings.stone_dwelling?.count || 0) > 0 ? 'stone_dwelling' : 'hut';
+  }
+  return targetId;
+}
+
 interface ThreeVillageSceneProps {
   gameState: GameState;
   selectedVillagerId: string | null;
   onSelectVillager: (villager: Villager | null) => void;
   onVillagerGathers?: (resource: 'food' | 'wood' | 'stone' | 'clay', amount: number) => void;
   onUpdateVillagerSchedule?: (villagerId: string, workStart: number, workEnd: number) => void;
+  onDemolishBuilding?: (buildingId: string) => void;
 }
 
 export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
@@ -87,6 +101,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   onSelectVillager,
   onVillagerGathers,
   onUpdateVillagerSchedule,
+  onDemolishBuilding,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
 
@@ -107,10 +122,11 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     } catch (e) {}
   }, [facilityPositions]);
 
-  // Move Facility Mode states
+  // Move Facility Mode & Direct Building Selection states
   const [isMoveMode, setIsMoveMode] = useState(false);
   const [selectedFacilityId, setSelectedFacilityId] = useState<string | null>('wheat');
   const [moveToast, setMoveToast] = useState<string | null>(null);
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string | null>(null);
 
   const facilityGroupsRef = useRef<Map<string, THREE.Group>>(new Map());
   const moveRingRef = useRef<THREE.Mesh | null>(null);
@@ -190,18 +206,19 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     return () => clearTimeout(t);
   }, [moveToast]);
 
-  // Synchronize Move Ring indicator position with terrain height
+  // Synchronize Move/Selection Ring indicator position with terrain height
   useEffect(() => {
     if (!moveRingRef.current) return;
-    if (isMoveMode && selectedFacilityId) {
-      const p = facilityPositions[selectedFacilityId];
+    const activeTargetId = isMoveMode ? selectedFacilityId : selectedBuildingId;
+    if (activeTargetId) {
+      const p = facilityPositions[activeTargetId] || BUILDING_FALLBACK_POSITIONS[activeTargetId];
       if (p) {
         updateMoveRingPosition(moveRingRef.current, p.x, p.z, getTerrainHeight);
       }
     } else {
       moveRingRef.current.visible = false;
     }
-  }, [isMoveMode, selectedFacilityId, facilityPositions]);
+  }, [isMoveMode, selectedFacilityId, selectedBuildingId, facilityPositions]);
 
   // Helper to obtain dynamic node position with terrain elevation
   const getNodePos = (key: string, fallback: { x: number; z: number }): THREE.Vector3 => {
@@ -218,6 +235,30 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   const hasDraggedRef = useRef(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const isRightClickRef = useRef(false);
+
+  // Click-and-hold (long-press) state to unlock Move Mode directly on built structures
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const longPressTargetFacilityIdRef = useRef<string | null>(null);
+  const isLongPressTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    };
+  }, []);
+
+  const getFacilityAtScreenPoint = (clientX: number, clientY: number): string | null => {
+    if (!mountRef.current || !cameraRef.current) return null;
+    const rect = mountRef.current.getBoundingClientRect();
+    const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    const y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(x, y), cameraRef.current);
+    return findFacilityFromRaycast(raycaster, facilityGroupsRef.current);
+  };
 
   // Three.js scene refs
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -679,6 +720,94 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     });
   }, [gameState.buildings, gameState.zigguratStagesCompleted, facilityPositions]);
 
+  // 2.1 Visually clear undergrowth vegetation beneath all active buildings and facilities
+  useEffect(() => {
+    if (!undergrowthGroupRef.current) return;
+
+    const clearanceAreas: ClearanceArea[] = [];
+
+    // Permanent facilities
+    const facilityKeys = [
+      'village_hall',
+      'campfire',
+      'wheat',
+      'wood',
+      'stone',
+      'clay',
+      'buildersite',
+      'elderDesk',
+      'guardPost',
+    ];
+
+    facilityKeys.forEach((key) => {
+      const p = facilityPositions[key] || BUILDING_FALLBACK_POSITIONS[key] || DEFAULT_FACILITY_FALLBACKS[key];
+      if (p) {
+        clearanceAreas.push({
+          x: p.x,
+          z: p.z,
+          radius: getBuildingClearanceRadius(key),
+        });
+      }
+    });
+
+    // Built shelters / huts
+    const { buildings, zigguratStagesCompleted } = gameState;
+    const hutsCount = Math.max(1, buildings.hut?.count || 1);
+    const stoneDwellings = buildings.stone_dwelling?.count || 0;
+
+    if (hutsCount >= 1 || stoneDwellings >= 1) {
+      const p = facilityPositions['shelter_1'] || BUILDING_FALLBACK_POSITIONS['shelter_1'];
+      if (p) clearanceAreas.push({ x: p.x, z: p.z, radius: getBuildingClearanceRadius('shelter_1') });
+    }
+    if (hutsCount >= 2 || stoneDwellings >= 2) {
+      const p = facilityPositions['shelter_2'] || BUILDING_FALLBACK_POSITIONS['shelter_2'];
+      if (p) clearanceAreas.push({ x: p.x, z: p.z, radius: getBuildingClearanceRadius('shelter_2') });
+    }
+    if (hutsCount >= 3 || stoneDwellings >= 3) {
+      const p = facilityPositions['shelter_3'] || BUILDING_FALLBACK_POSITIONS['shelter_3'];
+      if (p) clearanceAreas.push({ x: p.x, z: p.z, radius: getBuildingClearanceRadius('shelter_3') });
+    }
+    if (hutsCount >= 4) {
+      const p = facilityPositions['shelter_4'] || BUILDING_FALLBACK_POSITIONS['shelter_4'];
+      if (p) clearanceAreas.push({ x: p.x, z: p.z, radius: getBuildingClearanceRadius('shelter_4') });
+    }
+
+    const otherBuildings = [
+      'granary',
+      'village_well',
+      'cooking_pit',
+      'sawmill',
+      'stoneworks',
+      'pottery_kiln',
+      'longhouse',
+    ];
+    otherBuildings.forEach((bId) => {
+      if ((buildings[bId]?.count || 0) > 0) {
+        const p = facilityPositions[bId] || BUILDING_FALLBACK_POSITIONS[bId];
+        if (p) {
+          clearanceAreas.push({
+            x: p.x,
+            z: p.z,
+            radius: getBuildingClearanceRadius(bId),
+          });
+        }
+      }
+    });
+
+    if ((buildings.ziggurat?.count || 0) > 0 || zigguratStagesCompleted > 0) {
+      const p = facilityPositions['ziggurat'] || BUILDING_FALLBACK_POSITIONS['ziggurat'];
+      if (p) {
+        clearanceAreas.push({
+          x: p.x,
+          z: p.z,
+          radius: getBuildingClearanceRadius('ziggurat'),
+        });
+      }
+    }
+
+    applyBuildingVegetationClearance(undergrowthGroupRef.current, clearanceAreas);
+  }, [gameState.buildings, gameState.zigguratStagesCompleted, facilityPositions]);
+
   // 3. Synchronize 3D Villagers
   useEffect(() => {
     if (!sceneRef.current) return;
@@ -783,9 +912,51 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     hasDraggedRef.current = false;
     dragStartRef.current = { x: e.clientX, y: e.clientY };
     isRightClickRef.current = e.button === 2;
+
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    isLongPressTriggeredRef.current = false;
+
+    // Left click on a facility initiates click-and-hold (long-press) to unlock move mode
+    if (e.button === 0 && !isMoveMode) {
+      const facilityId = getFacilityAtScreenPoint(e.clientX, e.clientY);
+      if (facilityId) {
+        longPressTargetFacilityIdRef.current = facilityId;
+        longPressStartPosRef.current = { x: e.clientX, y: e.clientY };
+
+        longPressTimerRef.current = window.setTimeout(() => {
+          const targetId = longPressTargetFacilityIdRef.current;
+          if (targetId && !hasDraggedRef.current) {
+            isLongPressTriggeredRef.current = true;
+            isDraggingRef.current = false;
+            audio.playStone();
+            setIsMoveMode(true);
+            setSelectedFacilityId(targetId);
+            setSelectedBuildingId(null);
+            onSelectVillager(null);
+            const cfg = DEFAULT_FACILITY_CONFIGS[targetId];
+            setMoveToast(`🏗️ Modo Mover liberado: ${cfg?.name || targetId}! Clique no solo para reposicionar.`);
+          }
+        }, 400);
+      }
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    if (longPressStartPosRef.current && longPressTimerRef.current) {
+      const dist = Math.hypot(
+        e.clientX - longPressStartPosRef.current.x,
+        e.clientY - longPressStartPosRef.current.y
+      );
+      if (dist > 6) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+        longPressTargetFacilityIdRef.current = null;
+      }
+    }
+
     if (!isDraggingRef.current) return;
     const dx = e.clientX - dragStartRef.current.x;
     const dy = e.clientY - dragStartRef.current.y;
@@ -804,8 +975,13 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     }
   };
 
-  const handleMouseUp = (e: React.MouseEvent) => {
+  const handleMouseUp = () => {
     isDraggingRef.current = false;
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    longPressTargetFacilityIdRef.current = null;
   };
 
   const handleWheel = (e: React.WheelEvent) => {
@@ -815,14 +991,49 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     }
   };
 
-  // Touch Support (Single touch rotate, pinch zoom)
+  // Touch Support (Single touch rotate / hold to move, pinch zoom)
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    isLongPressTriggeredRef.current = false;
+
     if (e.touches.length === 1) {
+      const touch = e.touches[0];
       isDraggingRef.current = true;
       hasDraggedRef.current = false;
-      dragStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      dragStartRef.current = { x: touch.clientX, y: touch.clientY };
+
+      if (!isMoveMode) {
+        const facilityId = getFacilityAtScreenPoint(touch.clientX, touch.clientY);
+        if (facilityId) {
+          longPressTargetFacilityIdRef.current = facilityId;
+          longPressStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+
+          longPressTimerRef.current = window.setTimeout(() => {
+            const targetId = longPressTargetFacilityIdRef.current;
+            if (targetId && !hasDraggedRef.current) {
+              isLongPressTriggeredRef.current = true;
+              isDraggingRef.current = false;
+              audio.playStone();
+              setIsMoveMode(true);
+              setSelectedFacilityId(targetId);
+              setSelectedBuildingId(null);
+              onSelectVillager(null);
+              const cfg = DEFAULT_FACILITY_CONFIGS[targetId];
+              setMoveToast(`🏗️ Modo Mover liberado: ${cfg?.name || targetId}! Toque no solo para reposicionar.`);
+            }
+          }, 400);
+        }
+      }
     } else if (e.touches.length === 2) {
       isDraggingRef.current = false;
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+      longPressTargetFacilityIdRef.current = null;
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       touchStartDistRef.current = Math.hypot(dx, dy);
@@ -830,17 +1041,32 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 1 && isDraggingRef.current) {
-      const dx = e.touches[0].clientX - dragStartRef.current.x;
-      const dy = e.touches[0].clientY - dragStartRef.current.y;
-      if (Math.hypot(dx, dy) > 4) {
-        hasDraggedRef.current = true;
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      if (longPressStartPosRef.current && longPressTimerRef.current) {
+        const dist = Math.hypot(
+          touch.clientX - longPressStartPosRef.current.x,
+          touch.clientY - longPressStartPosRef.current.y
+        );
+        if (dist > 6) {
+          clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+          longPressTargetFacilityIdRef.current = null;
+        }
       }
-      dragStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 
-      rotateCamera(camAngleRef.current, dx, dy);
-      if (cameraRef.current) {
-        updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
+      if (isDraggingRef.current) {
+        const dx = touch.clientX - dragStartRef.current.x;
+        const dy = touch.clientY - dragStartRef.current.y;
+        if (Math.hypot(dx, dy) > 4) {
+          hasDraggedRef.current = true;
+        }
+        dragStartRef.current = { x: touch.clientX, y: touch.clientY };
+
+        rotateCamera(camAngleRef.current, dx, dy);
+        if (cameraRef.current) {
+          updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
+        }
       }
     } else if (e.touches.length === 2 && touchStartDistRef.current !== null) {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -859,10 +1085,19 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   const handleTouchEnd = () => {
     isDraggingRef.current = false;
     touchStartDistRef.current = null;
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    longPressTargetFacilityIdRef.current = null;
   };
 
   // Click on 3D objects (Raycasting)
   const handleClick = (e: React.MouseEvent) => {
+    if (isLongPressTriggeredRef.current) {
+      isLongPressTriggeredRef.current = false;
+      return;
+    }
     if (hasDraggedRef.current) return;
     if (!mountRef.current || !sceneRef.current || !cameraRef.current) return;
     const rect = mountRef.current.getBoundingClientRect();
@@ -924,10 +1159,20 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
         const clickedVillager = gameState.villagers.find((v) => v.id === id);
         if (clickedVillager) {
           audio.playWood();
+          setSelectedBuildingId(null);
           onSelectVillager(clickedVillager);
           return;
         }
       }
+    }
+
+    // 2. Direct click on buildings or village facilities
+    const clickedFacilityId = findFacilityFromRaycast(raycaster, facilityGroupsRef.current);
+    if (clickedFacilityId) {
+      audio.playWood();
+      onSelectVillager(null);
+      setSelectedBuildingId(clickedFacilityId);
+      return;
     }
 
     // Raycast ground / nodes if a villager is already selected to command them!
@@ -946,6 +1191,9 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
           audio.playWood();
         }
       }
+    } else if (selectedBuildingId) {
+      // Deselect building when clicking empty ground
+      setSelectedBuildingId(null);
     }
   };
 
@@ -1042,19 +1290,6 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
             <span className="hidden sm:inline">Seguir</span>
           </button>
         )}
-
-        {/* Move Facility Mode Toggle Button */}
-        <FacilityMoveToggleButton
-          isMoveMode={isMoveMode}
-          onToggle={() => {
-            const next = !isMoveMode;
-            setIsMoveMode(next);
-            if (next && !selectedFacilityId) {
-              setSelectedFacilityId('wheat');
-            }
-            audio.playWood();
-          }}
-        />
       </div>
 
       {/* Move Facility Floating Toolbar & Toast */}
@@ -1072,6 +1307,79 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
         moveToast={moveToast}
         onResetPositions={handleResetFacilityPositions}
       />
+
+      {/* Selected Building / Facility Interaction Panel */}
+      {selectedBuildingId && !isMoveMode && (() => {
+        const buildingKey = resolveBuildingKey(selectedBuildingId, gameState.buildings);
+        const building = gameState.buildings[buildingKey] || null;
+        const cfg = DEFAULT_FACILITY_CONFIGS[selectedBuildingId] || {
+          name: building?.name || selectedBuildingId,
+          icon: '🏛️',
+          description: building?.description || 'Instalação da aldeia',
+        };
+
+        const isPermanent =
+          selectedBuildingId === 'village_hall' ||
+          selectedBuildingId === 'ziggurat' ||
+          [
+            'campfire',
+            'wheat',
+            'wood',
+            'stone',
+            'clay',
+            'buildersite',
+            'elderDesk',
+            'guardPost',
+          ].includes(selectedBuildingId);
+
+        let canDemolish = false;
+        let demolishReason: string | undefined;
+
+        if (selectedBuildingId === 'village_hall') {
+          demolishReason = 'A Sede da Vila é o centro administrativo permanente.';
+        } else if (selectedBuildingId === 'ziggurat') {
+          demolishReason = 'Monumentos ancestrais não podem ser demolidos.';
+        } else if (isPermanent) {
+          demolishReason = 'Instalações permanentes da aldeia não podem ser demolidas.';
+        } else if (!building || building.count <= 0) {
+          demolishReason = 'Construção ainda não erguida.';
+        } else if (building.constructionTurnsLeft > 0) {
+          demolishReason = 'Construção em andamento.';
+        } else if (building.category === 'housing') {
+          const testBuildings = {
+            ...gameState.buildings,
+            [buildingKey]: {
+              ...building,
+              count: building.count - 1,
+            },
+          };
+          const resultingCap = calculateHousingCapacity(testBuildings, gameState.villageLevel ?? 1);
+          if (resultingCap < gameState.villagers.length) {
+            demolishReason = `Não há moradias suficientes (${resultingCap} vagas para ${gameState.villagers.length} aldeões).`;
+          } else {
+            canDemolish = true;
+          }
+        } else {
+          canDemolish = true;
+        }
+
+        return (
+          <BuildingInteractionPanel
+            buildingId={selectedBuildingId}
+            building={building}
+            facilityName={cfg.name}
+            facilityIcon={cfg.icon}
+            facilityDescription={cfg.description}
+            canDemolish={canDemolish}
+            demolishReason={demolishReason}
+            onDemolish={() => {
+              onDemolishBuilding?.(buildingKey);
+              setSelectedBuildingId(null);
+            }}
+            onClose={() => setSelectedBuildingId(null)}
+          />
+        );
+      })()}
 
       {/* Selected Character 3D Inspector Card */}
       {selectedVillager && (() => {
@@ -1262,7 +1570,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
         <span>·</span>
         <span>🎯 Clique nos aldeões</span>
         <span>·</span>
-        <span>🏗️ Mova instalações</span>
+        <span>🏗️ Segure para mover</span>
       </div>
     </div>
   );

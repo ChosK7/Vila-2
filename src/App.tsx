@@ -31,6 +31,7 @@ import {
   calculateHousingCapacity,
   startBuildingConstruction,
   upgradeBuildingLevel,
+  demolishBuilding,
 } from './game/BuildingSystem';
 import { advanceSimulationDay } from './game/Simulation';
 import { updateVillagerWorkStatus } from './game/ScheduleSystem';
@@ -349,6 +350,27 @@ export default function App() {
     });
   };
 
+  // Demolish a building structure from 3D direct interaction
+  const handleDemolishBuilding = (buildingId: string) => {
+    setGameState((prev) => {
+      const result = demolishBuilding(
+        prev.buildings,
+        buildingId,
+        prev.villagers.length,
+        prev.villageLevel ?? 1
+      );
+      if (!result.success) {
+        audio.playAlert();
+        return prev;
+      }
+      audio.playStone();
+      return refreshMissions({
+        ...prev,
+        buildings: result.updatedBuildings,
+      });
+    });
+  };
+
   // Research Tech
   const handleResearchTech = (techId: string) => {
     setGameState((prev) => {
@@ -454,6 +476,7 @@ export default function App() {
           onSelectVillager={(v) => setSelectedVillagerId(v ? v.id : null)}
           onVillagerGathers={handleVillagerGathers}
           onUpdateVillagerSchedule={handleUpdateVillagerSchedule}
+          onDemolishBuilding={handleDemolishBuilding}
         />
 
         {/* 2. TOP MOBILE HEADER (Optimized for 9:16 vertical smartphone screen) */}

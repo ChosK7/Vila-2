@@ -56,31 +56,31 @@ export function createFacilityNodes(
   const hasStoneworks = (gameState.buildings.stoneworks?.count || 0) > 0;
   const hasPotteryKiln = (gameState.buildings.pottery_kiln?.count || 0) > 0;
 
-  const defaultMaterialPos = DEFAULT_FACILITY_FALLBACKS.defaultMaterial;
+  const villageHallPos = getNodePos('village_hall', DEFAULT_FACILITY_FALLBACKS.village_hall);
 
   return {
     wheat: getNodePos('wheat', DEFAULT_FACILITY_FALLBACKS.wheat),
     wood: getNodePos('wood', DEFAULT_FACILITY_FALLBACKS.wood),
     stone: getNodePos('stone', DEFAULT_FACILITY_FALLBACKS.stone),
     clay: getNodePos('clay', DEFAULT_FACILITY_FALLBACKS.clay),
-    villageHall: getNodePos('village_hall', DEFAULT_FACILITY_FALLBACKS.village_hall),
+    villageHall: villageHallPos,
     foodStorage: hasGranary
       ? getNodePos('granary', DEFAULT_FACILITY_FALLBACKS.granary)
-      : getNodePos('campfire', DEFAULT_FACILITY_FALLBACKS.campfireFoodFallback),
+      : villageHallPos,
     mealArea: hasCookingPit
       ? getNodePos('cooking_pit', DEFAULT_FACILITY_FALLBACKS.cooking_pit)
       : getNodePos('campfire', DEFAULT_FACILITY_FALLBACKS.campfireMealFallback),
     woodStorage: hasSawmill
       ? getNodePos('sawmill', DEFAULT_FACILITY_FALLBACKS.sawmill)
-      : getNodePos('campfire', defaultMaterialPos),
+      : villageHallPos,
     stoneStorage: hasStoneworks
       ? getNodePos('stoneworks', DEFAULT_FACILITY_FALLBACKS.stoneworks)
-      : getNodePos('campfire', defaultMaterialPos),
+      : villageHallPos,
     clayStorage: hasPotteryKiln
       ? getNodePos('pottery_kiln', DEFAULT_FACILITY_FALLBACKS.pottery_kiln)
-      : getNodePos('campfire', defaultMaterialPos),
-    materialStorage: getNodePos('campfire', defaultMaterialPos),
-    storage: getNodePos('campfire', DEFAULT_FACILITY_FALLBACKS.campfireFoodFallback),
+      : villageHallPos,
+    materialStorage: villageHallPos,
+    storage: villageHallPos,
     campfire: getNodePos('campfire', DEFAULT_FACILITY_FALLBACKS.campfire),
     buildersite: getNodePos('buildersite', DEFAULT_FACILITY_FALLBACKS.buildersite),
     elderDesk: getNodePos('elderDesk', DEFAULT_FACILITY_FALLBACKS.elderDesk),

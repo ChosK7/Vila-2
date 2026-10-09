@@ -372,17 +372,17 @@ export function updateVillagersAnimation(
             audio.playHarvest();
           } else if (agent.villager.job === 'lumberjack') {
             agent.rig.woodCarry.visible = true;
-            agent.target = facilityNodes.materialStorage.clone();
+            agent.target = facilityNodes.woodStorage.clone();
             agent.state = 'carrying_to_storage';
             audio.playWood();
           } else if (agent.villager.job === 'quarryman') {
             agent.rig.stoneCarry.visible = true;
-            agent.target = facilityNodes.materialStorage.clone();
+            agent.target = facilityNodes.stoneStorage.clone();
             agent.state = 'carrying_to_storage';
             audio.playStone();
           } else if (agent.villager.job === 'potter') {
             agent.rig.clayCarry.visible = true;
-            agent.target = facilityNodes.materialStorage.clone();
+            agent.target = facilityNodes.clayStorage.clone();
             agent.state = 'carrying_to_storage';
             audio.playWood();
           } else {
