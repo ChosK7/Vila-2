@@ -163,10 +163,9 @@ export function applyDailyResourceProduction(
   newResources: Resources;
   eventNote?: string;
 } {
-  const foodConsumed = Math.max(0, rates.foodConsumed);
   const newFood = Math.min(
     maxStorage.food,
-    Math.max(0, currentResources.food - foodConsumed)
+    Math.max(0, currentResources.food)
   );
 
   // Consumo diário de lenha pela fogueira central
