@@ -21,15 +21,7 @@ import {
   createUndergrowthVegetationGroup,
 } from './environmentMeshes';
 import {
-  Compass,
   Eye,
-  Maximize2,
-  RotateCcw,
-  User,
-  ZoomIn,
-  ZoomOut,
-  Move,
-  Check,
   ChevronDown,
 } from 'lucide-react';
 import { decimalToTimeString, timeStringToDecimal } from '../game/ScheduleSystem';
@@ -53,6 +45,22 @@ import {
   applyCameraPreset,
   updateFollowCamera,
 } from './CameraController';
+import {
+  DEFAULT_FACILITY_CONFIGS,
+  FACILITY_STORAGE_KEY,
+  getDefaultFacilityPositions,
+  clampFacilityPosition,
+  findFacilityFromRaycast,
+  findPlacementGroundHit,
+  createFacilityMoveRing,
+  updateMoveRingPosition,
+} from './FacilityPlacement';
+import {
+  FacilityPlacementControls,
+  FacilityMoveToggleButton,
+} from '../components/FacilityPlacementControls';
+
+export { DEFAULT_FACILITY_CONFIGS };
 
 export type { VillagerAgent, IdleActionType };
 
@@ -151,34 +159,6 @@ const LIGHTING_PRESETS: Record<TimeOfDay, LightingPreset> = {
   },
 };
 
-export const DEFAULT_FACILITY_CONFIGS: Record<
-  string,
-  { name: string; icon: string; defaultX: number; defaultZ: number; description: string }
-> = {
-  campfire: { name: 'Fogueira Central & Refeições', icon: '🔥', defaultX: 0, defaultZ: -0.8, description: 'Ponto de encontro onde os aldeões tomam café da manhã, almoçam, jantam e descansam.' },
-  wheat: { name: 'Campos de Trigo (Agricultor)', icon: '🌾', defaultX: -6.5, defaultZ: 4.0, description: 'Plantações douradas de trigo ceifadas pelos agricultores.' },
-  wood: { name: 'Bosque de Coníferas (Lenhador)', icon: '🪵', defaultX: -6.0, defaultZ: -5.5, description: 'Área florestal onde os lenhadores abatem toras de madeira.' },
-  stone: { name: 'Pedreira de Rochas (Pedreiro)', icon: '🪨', defaultX: 6.5, defaultZ: -4.5, description: 'Rochas calcárias e blocos extraídos pelos pedreiros.' },
-  clay: { name: 'Margem Fluvial (Oleiro)', icon: '🧱', defaultX: 7.0, defaultZ: 3.5, description: 'Depósitos de argila e oficinas dos oleiros.' },
-  buildersite: { name: 'Canteiro de Obras (Construtor)', icon: '🔨', defaultX: 3.0, defaultZ: 0, description: 'Andaimagens e obras ativas erguidas pelos construtores.' },
-  elderDesk: { name: 'Mesa de Estudos (Ancião)', icon: '📜', defaultX: -2.2, defaultZ: -2.8, description: 'Altar de pergaminhos e registros do ancião da aldeia.' },
-  guardPost: { name: 'Posto de Sentinela (Guarda)', icon: '🛡️', defaultX: 5.5, defaultZ: 5.0, description: 'Guarita de vigia e patrulha armada dos guardas.' },
-  shelter_1: { name: 'Cabana 1 (Principal)', icon: '🛖', defaultX: -2.8, defaultZ: -1.8, description: 'Primeira moradia da aldeia (2 vagas base, +2 por nível).' },
-  shelter_2: { name: 'Cabana 2', icon: '🛖', defaultX: -2.8, defaultZ: 1.8, description: 'Segunda moradia da aldeia (2 vagas base, +2 por nível).' },
-  shelter_3: { name: 'Cabana 3', icon: '🛖', defaultX: 2.8, defaultZ: -2.0, description: 'Terceira moradia da aldeia (2 vagas base, +2 por nível).' },
-  shelter_4: { name: 'Cabana 4', icon: '🛖', defaultX: 2.8, defaultZ: 2.0, description: 'Quarta moradia da aldeia (2 vagas base, +2 por nível).' },
-  granary: { name: 'Celeiro de Grãos', icon: '🌾', defaultX: 0, defaultZ: 4.0, description: 'Estrutura elevada sobre estacas para estocagem de comida.' },
-  village_well: { name: 'Poço Comunitário', icon: '💧', defaultX: 0, defaultZ: -3.8, description: 'Poço de pedra que fornece água potável e irriga os campos.' },
-  cooking_pit: { name: 'Cozinha & Refeitório Comunitário', icon: '🍲', defaultX: -1.2, defaultZ: 1.5, description: 'Refeitório onde refeições coletivas garantem vitalidade e ânimo.' },
-  sawmill: { name: 'Serraria de Troncos', icon: '🪓', defaultX: -3.8, defaultZ: -4.5, description: 'Serraria artesanal para corte e armazenamento de madeira.' },
-  stoneworks: { name: 'Oficina de Cantaria', icon: '🔨', defaultX: 4.2, defaultZ: -3.5, description: 'Oficina onde blocos de pedra são talhados e preparados.' },
-  pottery_kiln: { name: 'Olaria & Forno de Argila', icon: '🏺', defaultX: 4.8, defaultZ: 2.5, description: 'Forno e estaleiro de secagem e queima de cerâmica de argila.' },
-  longhouse: { name: 'Casa Comunitária Longa', icon: '🏛️', defaultX: 0, defaultZ: -1.0, description: 'Grande salão comunal da Idade do Bronze.' },
-  ziggurat: { name: 'O Grande Zigurate', icon: '👑', defaultX: 0, defaultZ: -14.0, description: 'Monumento monumental ancestral e triunfo da civilização.' },
-};
-
-const FACILITY_STORAGE_KEY = 'vila_ancestral_facility_positions_v1';
-
 export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   gameState,
   selectedVillagerId,
@@ -194,11 +174,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       const saved = localStorage.getItem(FACILITY_STORAGE_KEY);
       if (saved) return JSON.parse(saved);
     } catch (e) {}
-    const initial: Record<string, { x: number; z: number }> = {};
-    Object.entries(DEFAULT_FACILITY_CONFIGS).forEach(([id, cfg]) => {
-      initial[id] = { x: cfg.defaultX, z: cfg.defaultZ };
-    });
-    return initial;
+    return getDefaultFacilityPositions();
   });
 
   const facilityPositionsRef = useRef(facilityPositions);
@@ -211,7 +187,6 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
 
   // Move Facility Mode states
   const [isMoveMode, setIsMoveMode] = useState(false);
-  const [movingFacilityId, setMovingFacilityId] = useState<string | null>(null);
   const [selectedFacilityId, setSelectedFacilityId] = useState<string | null>('wheat');
   const [moveToast, setMoveToast] = useState<string | null>(null);
 
@@ -276,10 +251,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
 
   // Reset facility positions to default
   const handleResetFacilityPositions = () => {
-    const initial: Record<string, { x: number; z: number }> = {};
-    Object.entries(DEFAULT_FACILITY_CONFIGS).forEach(([id, cfg]) => {
-      initial[id] = { x: cfg.defaultX, z: cfg.defaultZ };
-    });
+    const initial = getDefaultFacilityPositions();
     setFacilityPositions(initial);
     try {
       localStorage.setItem(FACILITY_STORAGE_KEY, JSON.stringify(initial));
@@ -301,9 +273,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     if (isMoveMode && selectedFacilityId) {
       const p = facilityPositions[selectedFacilityId];
       if (p) {
-        const y = getTerrainHeight(p.x, p.z);
-        moveRingRef.current.position.set(p.x, y + 0.06, p.z);
-        moveRingRef.current.visible = true;
+        updateMoveRingPosition(moveRingRef.current, p.x, p.z, getTerrainHeight);
       }
     } else {
       moveRingRef.current.visible = false;
@@ -561,16 +531,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     undergrowthGroupRef.current = undergrowth;
 
     // 3. Move Facility Placement Indicator Ring
-    const moveRingGeo = new THREE.RingGeometry(1.4, 1.8, 32);
-    const moveRingMat = new THREE.MeshBasicMaterial({
-      color: 0xf59e0b,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.85,
-    });
-    const moveRing = new THREE.Mesh(moveRingGeo, moveRingMat);
-    moveRing.rotation.x = -Math.PI / 2;
-    moveRing.visible = false;
+    const moveRing = createFacilityMoveRing();
     scene.add(moveRing);
     moveRingRef.current = moveRing;
 
@@ -1133,33 +1094,20 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     // =========================================================================
     if (isMoveMode) {
       // 1. First check if clicked on any facility or building in the scene to select it
-      const facilityRoots: THREE.Object3D[] = [];
-      facilityGroupsRef.current.forEach((grp) => facilityRoots.push(grp));
-      const facilityHits = raycaster.intersectObjects(facilityRoots, true);
-      if (facilityHits.length > 0) {
-        let obj: THREE.Object3D | null = facilityHits[0].object;
-        while (obj && !obj.name.startsWith('facility-')) {
-          obj = obj.parent;
-        }
-        if (obj) {
-          const clickedId = obj.name.replace('facility-', '');
-          setSelectedFacilityId(clickedId);
-          audio.playWood();
-          const cfg = DEFAULT_FACILITY_CONFIGS[clickedId];
-          setMoveToast(`Selecionado: ${cfg?.name || clickedId}. Clique no solo para reposicionar.`);
-          return;
-        }
+      const clickedFacilityId = findFacilityFromRaycast(raycaster, facilityGroupsRef.current);
+      if (clickedFacilityId) {
+        setSelectedFacilityId(clickedFacilityId);
+        audio.playWood();
+        const cfg = DEFAULT_FACILITY_CONFIGS[clickedFacilityId];
+        setMoveToast(`Selecionado: ${cfg?.name || clickedFacilityId}. Clique no solo para reposicionar.`);
+        return;
       }
 
       // 2. If a facility is already selected, clicking on the ground moves it!
       if (selectedFacilityId) {
-        const groundHits = raycaster.intersectObjects(sceneRef.current.children, true);
-        const groundHit = groundHits.find(
-          (hit) => hit.object.name === 'ground' || Math.abs(hit.point.y) < 25
-        );
+        const groundHit = findPlacementGroundHit(raycaster, sceneRef.current);
         if (groundHit) {
-          const newX = Math.round(Math.max(-23, Math.min(23, groundHit.point.x)) * 10) / 10;
-          const newZ = Math.round(Math.max(-23, Math.min(23, groundHit.point.z)) * 10) / 10;
+          const { x: newX, z: newZ } = clampFacilityPosition(groundHit.point.x, groundHit.point.z);
 
           setFacilityPositions((prev) => ({
             ...prev,
@@ -1313,8 +1261,9 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
         )}
 
         {/* Move Facility Mode Toggle Button */}
-        <button
-          onClick={() => {
+        <FacilityMoveToggleButton
+          isMoveMode={isMoveMode}
+          onToggle={() => {
             const next = !isMoveMode;
             setIsMoveMode(next);
             if (next && !selectedFacilityId) {
@@ -1322,102 +1271,24 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
             }
             audio.playWood();
           }}
-          className={`px-2.5 py-1 text-xs font-bold rounded-xl border-2 border-[#33261D] flex items-center gap-1.5 shadow-md transition-all cursor-pointer ${
-            isMoveMode
-              ? 'bg-amber-400 text-stone-950 ring-2 ring-stone-900 font-extrabold shadow-sm'
-              : 'bg-[#FDFBF7]/95 hover:bg-[#EFE4CE] text-stone-700'
-          }`}
-          title="Reorganizar instalações e edifícios da vila no terreno"
-        >
-          <Move size={13} />
-          <span className="hidden sm:inline">{isMoveMode ? 'Mover Ativo' : 'Mover'}</span>
-          <span className="sm:hidden">{isMoveMode ? 'Ativo' : 'Mover'}</span>
-        </button>
+        />
       </div>
 
-      {/* Move Facility Floating Toolbar */}
-      {isMoveMode && (
-        <div className="absolute top-[6.2rem] left-1/2 -translate-x-1/2 z-20 w-[94%] max-w-xl bg-[#FDFBF7]/95 backdrop-blur-md border-3 border-[#33261D] rounded-2xl p-3 shadow-2xl animate-in fade-in slide-in-from-top-3 pointer-events-auto">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-stone-200 pb-2 mb-2">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">🏗️</span>
-              <div>
-                <h3 className="font-hand font-extrabold text-sm sm:text-base text-stone-900 leading-tight">
-                  Reorganizar Instalações da Vila
-                </h3>
-                <p className="text-[11px] text-amber-900 font-bold">
-                  {selectedFacilityId
-                    ? `Selecionado: ${DEFAULT_FACILITY_CONFIGS[selectedFacilityId]?.name || selectedFacilityId}. Clique no solo 3D para reposicionar.`
-                    : 'Selecione uma instalação abaixo ou clique no cenário 3D.'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5 ml-auto">
-              <button
-                onClick={handleResetFacilityPositions}
-                className="px-2 py-1 text-[11px] font-bold rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-200 transition-colors flex items-center gap-1 cursor-pointer"
-                title="Restaurar posições originais da aldeia"
-              >
-                <RotateCcw size={12} />
-                <span>Padrão</span>
-              </button>
-              <button
-                onClick={() => setIsMoveMode(false)}
-                className="px-3 py-1 text-xs font-extrabold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs transition-colors flex items-center gap-1 cursor-pointer"
-              >
-                <Check size={13} />
-                <span>Concluir</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Facility Chips Selection List */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 scrollbar-thin">
-            {availableFacilities.map((fac) => {
-              const isSelected = selectedFacilityId === fac.id;
-              const currentPos = facilityPositions[fac.id];
-              return (
-                <button
-                  key={fac.id}
-                  onClick={() => {
-                    setSelectedFacilityId(fac.id);
-                    audio.playWood();
-                  }}
-                  className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-amber-400 text-stone-950 ring-2 ring-stone-900 shadow-xs font-extrabold scale-105'
-                      : 'bg-stone-100 hover:bg-[#EFE4CE] text-stone-800 border border-stone-300/80'
-                  }`}
-                  title={`${fac.description}${currentPos ? ` (X: ${currentPos.x}, Z: ${currentPos.z})` : ''}`}
-                >
-                  <span>{fac.icon}</span>
-                  <span>{fac.name}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-2 text-[11px] text-stone-600 flex items-center justify-between border-t border-stone-200/80 pt-1.5">
-            <span className="italic">
-              💡 Os aldeões atualizarão automaticamente suas rotas para o novo local!
-            </span>
-            {selectedFacilityId && facilityPositions[selectedFacilityId] && (
-              <span className="font-mono text-[10px] text-stone-500 font-bold">
-                X: {facilityPositions[selectedFacilityId].x} | Z: {facilityPositions[selectedFacilityId].z}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Floating Toast Notification */}
-      {moveToast && (
-        <div className="absolute top-40 left-1/2 -translate-x-1/2 z-30 bg-[#2C241E]/95 backdrop-blur-xs text-[#FAF3E7] border border-amber-400/60 px-4 py-2 rounded-xl text-xs font-bold shadow-xl flex items-center gap-2 animate-in fade-in slide-in-from-top-2 pointer-events-none">
-          <span>✨</span>
-          <span>{moveToast}</span>
-        </div>
-      )}
+      {/* Move Facility Floating Toolbar & Toast */}
+      <FacilityPlacementControls
+        isMoveMode={isMoveMode}
+        onCloseMoveMode={() => setIsMoveMode(false)}
+        selectedFacilityId={selectedFacilityId}
+        onSelectFacility={(id) => {
+          setSelectedFacilityId(id);
+          audio.playWood();
+        }}
+        availableFacilities={availableFacilities}
+        facilityPositions={facilityPositions}
+        facilityConfigs={DEFAULT_FACILITY_CONFIGS}
+        moveToast={moveToast}
+        onResetPositions={handleResetFacilityPositions}
+      />
 
       {/* Selected Character 3D Inspector Card */}
       {selectedVillager && (() => {
