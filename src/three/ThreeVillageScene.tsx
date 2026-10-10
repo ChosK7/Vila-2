@@ -43,6 +43,7 @@ import {
 import {
   CameraOrbitState,
   CameraPreset,
+  CameraDetailLevel,
   CAMERA_PRESETS,
   updateCameraPosition,
   panCamera,
@@ -238,7 +239,6 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   const isDraggingRef = useRef(false);
   const hasDraggedRef = useRef(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
-  const isRightClickRef = useRef(false);
 
   // TEMPORÁRIO: Ponte entre nível da vila e expansão territorial/visual do mapa.
   // Quando o sistema territorial dedicado for implementado, mapExpansionLevel será desacoplado de villageLevel.
@@ -248,20 +248,37 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   );
   const mapExpansionLevelRef = useRef(mapExpansionLevel);
 
+  const [cameraDetailLevel, setCameraDetailLevel] =
+    useState<CameraDetailLevel>(() =>
+      getCameraDetailLevel(
+        camAngleRef.current,
+        mapExpansionLevel
+      )
+    );
+
+  const refreshCameraDetailLevel = () => {
+    const nextDetailLevel = getCameraDetailLevel(
+      camAngleRef.current,
+      mapExpansionLevelRef.current
+    );
+
+    setCameraDetailLevel((current) =>
+      current === nextDetailLevel
+        ? current
+        : nextDetailLevel
+    );
+  };
+
   // Reação imediata à evolução do nível de expansão do mapa
   useEffect(() => {
     mapExpansionLevelRef.current = mapExpansionLevel;
     clampCameraTarget(camTargetRef.current, mapExpansionLevel);
     clampCameraZoom(camAngleRef.current, mapExpansionLevel);
+    refreshCameraDetailLevel();
     if (cameraRef.current) {
       updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
     }
   }, [mapExpansionLevel]);
-
-  const cameraDetailLevel = useMemo(
-    () => getCameraDetailLevel(camAngleRef.current, mapExpansionLevel),
-    [mapExpansionLevel]
-  );
 
   // Click-and-hold (long-press) state to unlock Move Mode directly on built structures
   const longPressTimerRef = useRef<number | null>(null);
@@ -957,7 +974,6 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     isDraggingRef.current = true;
     hasDraggedRef.current = false;
     dragStartRef.current = { x: e.clientX, y: e.clientY };
-    isRightClickRef.current = e.button === 2;
 
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
@@ -1035,12 +1051,13 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
 
   const handleWheel = (e: React.WheelEvent) => {
     zoomCamera(camAngleRef.current, e.deltaY, mapExpansionLevelRef.current);
+    refreshCameraDetailLevel();
     if (cameraRef.current) {
       updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
     }
   };
 
-  // Touch Support (Single touch rotate / hold to move, pinch zoom)
+  // Touch Support (single touch pan / hold to move, pinch zoom)
   const handleTouchStart = (e: React.TouchEvent) => {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
@@ -1136,6 +1153,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
         pinchDelta * 0.05,
         mapExpansionLevelRef.current
       );
+      refreshCameraDetailLevel();
       if (cameraRef.current) {
         updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
       }
@@ -1287,6 +1305,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       getTerrainHeight,
       mapExpansionLevelRef.current
     );
+    refreshCameraDetailLevel();
     if (cameraRef.current) {
       updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
     }
