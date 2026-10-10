@@ -45,12 +45,15 @@ import {
   CameraPreset,
   CAMERA_PRESETS,
   updateCameraPosition,
-  rotateCamera,
   panCamera,
   zoomCamera,
   zoomCameraByDelta,
   applyCameraPreset,
   updateFollowCamera,
+  normalizeMapExpansionLevel,
+  clampCameraTarget,
+  clampCameraZoom,
+  getCameraDetailLevel,
 } from './CameraController';
 import {
   DEFAULT_FACILITY_CONFIGS,
@@ -237,6 +240,29 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   const dragStartRef = useRef({ x: 0, y: 0 });
   const isRightClickRef = useRef(false);
 
+  // TEMPORÁRIO: Ponte entre nível da vila e expansão territorial/visual do mapa.
+  // Quando o sistema territorial dedicado for implementado, mapExpansionLevel será desacoplado de villageLevel.
+  const mapExpansionLevel = useMemo(
+    () => normalizeMapExpansionLevel((gameState.villageLevel ?? 1) - 1),
+    [gameState.villageLevel]
+  );
+  const mapExpansionLevelRef = useRef(mapExpansionLevel);
+
+  // Reação imediata à evolução do nível de expansão do mapa
+  useEffect(() => {
+    mapExpansionLevelRef.current = mapExpansionLevel;
+    clampCameraTarget(camTargetRef.current, mapExpansionLevel);
+    clampCameraZoom(camAngleRef.current, mapExpansionLevel);
+    if (cameraRef.current) {
+      updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
+    }
+  }, [mapExpansionLevel]);
+
+  const cameraDetailLevel = useMemo(
+    () => getCameraDetailLevel(camAngleRef.current, mapExpansionLevel),
+    [mapExpansionLevel]
+  );
+
   // Click-and-hold (long-press) state to unlock Move Mode directly on built structures
   const longPressTimerRef = useRef<number | null>(null);
   const longPressStartPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -391,7 +417,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     rendererRef.current = renderer;
@@ -685,6 +711,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
         const agent = agentsRef.current.get(selectedVillagerIdRef.current);
         if (agent) {
           updateFollowCamera(camTargetRef.current, agent.pos);
+          clampCameraTarget(camTargetRef.current, mapExpansionLevelRef.current);
           updateCameraPosition(
             cameraRef.current,
             camTargetRef.current,
@@ -985,11 +1012,13 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     }
     dragStartRef.current = { x: e.clientX, y: e.clientY };
 
-    if (isRightClickRef.current) {
-      panCamera(camTargetRef.current, camAngleRef.current, dx, dy);
-    } else {
-      rotateCamera(camAngleRef.current, dx, dy);
-    }
+    panCamera(
+      camTargetRef.current,
+      camAngleRef.current,
+      dx,
+      dy,
+      mapExpansionLevelRef.current
+    );
     if (cameraRef.current) {
       updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
     }
@@ -1005,7 +1034,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   };
 
   const handleWheel = (e: React.WheelEvent) => {
-    zoomCamera(camAngleRef.current, e.deltaY);
+    zoomCamera(camAngleRef.current, e.deltaY, mapExpansionLevelRef.current);
     if (cameraRef.current) {
       updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
     }
@@ -1084,7 +1113,13 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
         }
         dragStartRef.current = { x: touch.clientX, y: touch.clientY };
 
-        rotateCamera(camAngleRef.current, dx, dy);
+        panCamera(
+          camTargetRef.current,
+          camAngleRef.current,
+          dx,
+          dy,
+          mapExpansionLevelRef.current
+        );
         if (cameraRef.current) {
           updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
         }
@@ -1096,7 +1131,11 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       const pinchDelta = touchStartDistRef.current - currentDist;
       touchStartDistRef.current = currentDist;
 
-      zoomCameraByDelta(camAngleRef.current, pinchDelta * 0.05);
+      zoomCameraByDelta(
+        camAngleRef.current,
+        pinchDelta * 0.05,
+        mapExpansionLevelRef.current
+      );
       if (cameraRef.current) {
         updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
       }
@@ -1245,7 +1284,8 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       camAngleRef.current,
       camTargetRef.current,
       facilityPositionsRef.current,
-      getTerrainHeight
+      getTerrainHeight,
+      mapExpansionLevelRef.current
     );
     if (cameraRef.current) {
       updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
@@ -1258,6 +1298,8 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     <div
       ref={mountRef}
       className="absolute inset-0 w-full h-full overflow-hidden bg-[#DCE7EB] cursor-grab active:cursor-grabbing select-none"
+      data-camera-detail={cameraDetailLevel}
+      data-map-expansion-level={mapExpansionLevel}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -1617,7 +1659,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
 
       {/* Controls helper hint in corner */}
       <div className="absolute bottom-3 right-3 z-10 bg-[#FDFBF7]/85 backdrop-blur-xs border-2 border-[#33261D] px-3 py-1.5 rounded-xl text-[11px] font-medium text-stone-700 shadow-sm pointer-events-none flex items-center gap-2">
-        <span>🖱️ Arraste para girar</span>
+        <span>🖱️ Arraste para mover</span>
         <span>·</span>
         <span>📜 Zoom</span>
         <span>·</span>
