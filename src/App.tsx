@@ -37,10 +37,7 @@ import { advanceSimulationDay } from './game/Simulation';
 import { updateVillagerWorkStatus } from './game/ScheduleSystem';
 import { getXPRequiredForLevel, MAX_VILLAGE_LEVEL } from './game/ProgressionSystem';
 import { applyLevelUnlocks } from './game/LevelUnlockSystem';
-import {
-  normalizeMapExpansionLevel,
-  unlockNextTerritoryExpansion,
-} from './game/TerritoryExpansionSystem';
+import { normalizeMapExpansionLevel } from './game/TerritoryExpansionSystem';
 import {
   applyMissionReward,
   updateMissionProgress,
@@ -379,11 +376,6 @@ export default function App() {
         buildings: result.updatedBuildings,
       });
     });
-  };
-
-  // Expansão Territorial (preparado para acionamento na próxima etapa)
-  const handleExpandTerritory = () => {
-    setGameState((prev) => unlockNextTerritoryExpansion(prev));
   };
 
   // Research Tech
