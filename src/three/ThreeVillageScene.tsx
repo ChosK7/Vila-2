@@ -240,11 +240,10 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   const hasDraggedRef = useRef(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
 
-  // TEMPORÁRIO: Ponte entre nível da vila e expansão territorial/visual do mapa.
-  // Quando o sistema territorial dedicado for implementado, mapExpansionLevel será desacoplado de villageLevel.
+  // Nível oficial de expansão territorial da vila
   const mapExpansionLevel = useMemo(
-    () => normalizeMapExpansionLevel((gameState.villageLevel ?? 1) - 1),
-    [gameState.villageLevel]
+    () => normalizeMapExpansionLevel(gameState.mapExpansionLevel ?? 0),
+    [gameState.mapExpansionLevel]
   );
   const mapExpansionLevelRef = useRef(mapExpansionLevel);
 
@@ -1203,7 +1202,11 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       if (selectedFacilityId) {
         const groundHit = findPlacementGroundHit(raycaster, sceneRef.current);
         if (groundHit) {
-          const { x: newX, z: newZ } = clampFacilityPosition(groundHit.point.x, groundHit.point.z);
+          const { x: newX, z: newZ } = clampFacilityPosition(
+            groundHit.point.x,
+            groundHit.point.z,
+            mapExpansionLevelRef.current
+          );
 
           setFacilityPositions((prev) => ({
             ...prev,

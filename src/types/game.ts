@@ -162,6 +162,7 @@ export interface GameState {
   gameHour: number; // 0.0 to 24.0 (continuous time of day)
   isTimePaused?: boolean;
   villageLevel: number;
+  mapExpansionLevel: number;
   villageXP: number;
   xpToNextLevel: number;
   lastLevelUp?: {

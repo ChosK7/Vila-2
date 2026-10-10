@@ -700,6 +700,7 @@ export const INITIAL_STATE: GameState = {
   gameHour: 5.6,
   isTimePaused: false,
   villageLevel: 1,
+  mapExpansionLevel: 0,
   villageXP: 0,
   xpToNextLevel: 100,
   unlockedJobs: ['farmer', 'lumberjack', 'quarryman'],

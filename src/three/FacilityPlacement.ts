@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { getTerritoryExpansionConfig } from '../game/TerritoryExpansionSystem';
 
 export interface FacilityPosition {
   x: number;
@@ -78,13 +79,18 @@ export function getDefaultFacilityPositions(): FacilityPositions {
 }
 
 /**
- * Clamps a 3D coordinate pair within map bounds (-23 to 23) with 0.1 precision.
+ * Clamps a 3D coordinate pair within the unlocked territory build limits with 0.1 precision.
  */
-export function clampFacilityPosition(x: number, z: number): FacilityPlacementResult {
+export function clampFacilityPosition(
+  x: number,
+  z: number,
+  expansionLevel: number = 0
+): FacilityPlacementResult {
+  const { buildHalfExtent } = getTerritoryExpansionConfig(expansionLevel);
   const clampedX =
-    Math.round(Math.max(MAP_BOUNDS.MIN_COORD, Math.min(MAP_BOUNDS.MAX_COORD, x)) * 10) / 10;
+    Math.round(Math.max(-buildHalfExtent, Math.min(buildHalfExtent, x)) * 10) / 10;
   const clampedZ =
-    Math.round(Math.max(MAP_BOUNDS.MIN_COORD, Math.min(MAP_BOUNDS.MAX_COORD, z)) * 10) / 10;
+    Math.round(Math.max(-buildHalfExtent, Math.min(buildHalfExtent, z)) * 10) / 10;
   return { x: clampedX, z: clampedZ };
 }
 

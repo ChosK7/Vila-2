@@ -1,4 +1,10 @@
 import * as THREE from 'three';
+import {
+  getTerritoryExpansionConfig,
+  normalizeMapExpansionLevel,
+} from '../game/TerritoryExpansionSystem';
+
+export { normalizeMapExpansionLevel };
 
 export interface CameraOrbitState {
   theta: number;
@@ -45,39 +51,6 @@ export interface CameraExpansionConfig {
   panHalfExtent: number;
 }
 
-export const CAMERA_EXPANSION_CONFIGS: readonly CameraExpansionConfig[] = [
-  {
-    level: 0,
-    minRadius: 6.5,
-    maxRadius: 18,
-    panHalfExtent: 8,
-  },
-  {
-    level: 1,
-    minRadius: 6.5,
-    maxRadius: 22,
-    panHalfExtent: 12,
-  },
-  {
-    level: 2,
-    minRadius: 6.5,
-    maxRadius: 27,
-    panHalfExtent: 17,
-  },
-  {
-    level: 3,
-    minRadius: 6.5,
-    maxRadius: 33,
-    panHalfExtent: 23,
-  },
-  {
-    level: 4,
-    minRadius: 6.5,
-    maxRadius: 40,
-    panHalfExtent: 30,
-  },
-] as const;
-
 export const CAMERA_LIMITS = {
   FIXED_THETA: Math.PI / 4,
   FIXED_PHI: Math.PI / 3.2,
@@ -104,18 +77,16 @@ export function lockCameraAngles(orbit: CameraOrbitState): void {
 }
 
 /**
- * Normaliza o nível de expansão do mapa entre os limites suportados (0 a 4).
- */
-export function normalizeMapExpansionLevel(level: number): number {
-  return Math.max(0, Math.min(CAMERA_EXPANSION_CONFIGS.length - 1, Math.floor(level)));
-}
-
-/**
- * Obtém a configuração de raio e limites de pan para o nível especificado.
+ * Obtém a configuração de raio e limites de pan para o nível especificado a partir do sistema territorial central.
  */
 export function getCameraExpansionConfig(level: number): CameraExpansionConfig {
-  const normalized = normalizeMapExpansionLevel(level);
-  return CAMERA_EXPANSION_CONFIGS[normalized];
+  const territory = getTerritoryExpansionConfig(level);
+  return {
+    level: territory.level,
+    minRadius: CAMERA_LIMITS.MIN_RADIUS,
+    maxRadius: territory.cameraMaxRadius,
+    panHalfExtent: territory.cameraPanHalfExtent,
+  };
 }
 
 /**

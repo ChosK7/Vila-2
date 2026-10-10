@@ -38,6 +38,10 @@ import { updateVillagerWorkStatus } from './game/ScheduleSystem';
 import { getXPRequiredForLevel, MAX_VILLAGE_LEVEL } from './game/ProgressionSystem';
 import { applyLevelUnlocks } from './game/LevelUnlockSystem';
 import {
+  normalizeMapExpansionLevel,
+  unlockNextTerritoryExpansion,
+} from './game/TerritoryExpansionSystem';
+import {
   applyMissionReward,
   updateMissionProgress,
   generateMissionSet,
@@ -84,6 +88,12 @@ export default function App() {
           parsed.villageXP = 0;
           parsed.xpToNextLevel = 0;
         }
+
+        // Migração de save antigo para o sistema de expansão territorial (sempre inicia em 0 se ausente)
+        parsed.mapExpansionLevel =
+          typeof parsed.mapExpansionLevel === 'number'
+            ? normalizeMapExpansionLevel(parsed.mapExpansionLevel)
+            : 0;
 
         // Migração e atualização segura das construções (village_hall, sawmill, stoneworks, cooking_pit)
         parsed.buildings = {
@@ -369,6 +379,11 @@ export default function App() {
         buildings: result.updatedBuildings,
       });
     });
+  };
+
+  // Expansão Territorial (preparado para acionamento na próxima etapa)
+  const handleExpandTerritory = () => {
+    setGameState((prev) => unlockNextTerritoryExpansion(prev));
   };
 
   // Research Tech
