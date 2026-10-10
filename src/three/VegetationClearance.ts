@@ -46,7 +46,7 @@ export function getBuildingClearanceRadius(id: string): number {
  * Ajusta a propriedade 'visible' de cada tufo/arbusto no undergrowthGroup sem remover do grafo de cena.
  */
 export function applyBuildingVegetationClearance(
-  undergrowthGroup: THREE.Group,
+  undergrowthGroup: THREE.Group | null | undefined,
   areas: ClearanceArea[]
 ): void {
   if (!undergrowthGroup || !undergrowthGroup.children) return;

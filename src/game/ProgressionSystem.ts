@@ -6,28 +6,28 @@
 export const MAX_VILLAGE_LEVEL = 10;
 
 /**
- * Tabela de XP necessária para avançar do nível atual para o próximo.
- * Nível 1 -> 2 = 100 XP
- * Nível 2 -> 3 = 150 XP
- * Nível 3 -> 4 = 225 XP
- * Nível 4 -> 5 = 325 XP
- * Nível 5 -> 6 = 450 XP
- * Nível 6 -> 7 = 600 XP
- * Nível 7 -> 8 = 775 XP
- * Nível 8 -> 9 = 975 XP
- * Nível 9 -> 10 = 1200 XP
+ * Tabela de XP necessária para avançar do nível atual para o próximo (Curva de Teste Rápido 1–10).
+ * 1: 80
+ * 2: 110
+ * 3: 140
+ * 4: 180
+ * 5: 220
+ * 6: 260
+ * 7: 310
+ * 8: 360
+ * 9: 420
  * No nível 10 = 0 XP
  */
 const XP_TABLE: Record<number, number> = {
-  1: 100,
-  2: 150,
-  3: 225,
-  4: 325,
-  5: 450,
-  6: 600,
-  7: 775,
-  8: 975,
-  9: 1200,
+  1: 80,
+  2: 110,
+  3: 140,
+  4: 180,
+  5: 220,
+  6: 260,
+  7: 310,
+  8: 360,
+  9: 420,
 };
 
 /**
