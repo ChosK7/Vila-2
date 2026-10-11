@@ -9,6 +9,7 @@ import { TurnReportModal } from './components/TurnReportModal';
 import { EventModal } from './components/EventModal';
 import { HelpModal } from './components/HelpModal';
 import { VictoryModal } from './components/VictoryModal';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { audio } from './utils/audio';
 import { useGameClock, toggleTimePause } from './game/GameClock';
 import {
@@ -619,6 +620,9 @@ export default function App() {
         year={gameState.year}
         villagersCount={gameState.villagers.length}
       />
+
+      {/* PWA Direct In-App Installation Prompt */}
+      <PWAInstallPrompt />
     </div>
   );
 }
