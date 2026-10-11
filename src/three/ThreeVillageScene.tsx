@@ -441,6 +441,18 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
 
     // Lights
     const { ambientLight, directionalLight: dirLight } = createSceneLighting();
+
+    // Mobile Detection & Renderer Configuration
+    const isMobileLike = window.matchMedia('(pointer: coarse)').matches;
+    renderer.setPixelRatio(
+      Math.min(window.devicePixelRatio, isMobileLike ? 1.25 : 1.5)
+    );
+
+    if (isMobileLike && dirLight.shadow) {
+      dirLight.shadow.mapSize.width = 1024;
+      dirLight.shadow.mapSize.height = 1024;
+    }
+
     scene.add(ambientLight);
     ambientLightRef.current = ambientLight;
     scene.add(dirLight);
@@ -670,10 +682,25 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
 
     // Animation Loop
     let animId: number;
+    let isDocumentHidden = document.hidden;
     const timer = new THREE.Timer();
+
+    const handleVisibilityChange = () => {
+      isDocumentHidden = document.hidden;
+      if (!isDocumentHidden) {
+        timer.update();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const animate = () => {
       animId = requestAnimationFrame(animate);
+
+      // Suspend heavy simulation and render updates while in background
+      if (isDocumentHidden) {
+        return;
+      }
+
       timer.update();
       const delta = timer.getDelta();
       const time = timer.getElapsed();
@@ -742,6 +769,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
 
     return () => {
       cancelAnimationFrame(animId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('resize', handleResize);
       ro.disconnect();
       timer.dispose();
@@ -1319,7 +1347,8 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   return (
     <div
       ref={mountRef}
-      className="absolute inset-0 w-full h-full overflow-hidden bg-[#DCE7EB] cursor-grab active:cursor-grabbing select-none"
+      className="absolute inset-0 w-full h-full overflow-hidden bg-[#DCE7EB] cursor-grab active:cursor-grabbing select-none touch-none"
+      style={{ touchAction: 'none' }}
       data-camera-detail={cameraDetailLevel}
       data-map-expansion-level={mapExpansionLevel}
       onMouseDown={handleMouseDown}

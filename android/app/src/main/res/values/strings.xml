@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Vila Ancestral</string>
+    <string name="title_activity_main">Vila Ancestral</string>
+    <string name="package_name">com.vilaancestral.game</string>
+    <string name="custom_url_scheme">com.vilaancestral.game</string>
+</resources>

@@ -742,4 +742,5 @@ export const INITIAL_STATE: GameState = {
   soundEnabled: true,
   gameWon: false,
   zigguratStagesCompleted: 0,
+  level10TestCompletionShown: false,
 };

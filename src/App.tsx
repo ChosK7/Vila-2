@@ -9,6 +9,7 @@ import { TurnReportModal } from './components/TurnReportModal';
 import { EventModal } from './components/EventModal';
 import { HelpModal } from './components/HelpModal';
 import { VictoryModal } from './components/VictoryModal';
+import { Level10CompletionModal } from './components/Level10CompletionModal';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { audio } from './utils/audio';
 import { useGameClock, toggleTimePause } from './game/GameClock';
@@ -38,7 +39,12 @@ import { advanceSimulationDay } from './game/Simulation';
 import { updateVillagerWorkStatus } from './game/ScheduleSystem';
 import { getXPRequiredForLevel, MAX_VILLAGE_LEVEL } from './game/ProgressionSystem';
 import { applyLevelUnlocks } from './game/LevelUnlockSystem';
-import { normalizeMapExpansionLevel } from './game/TerritoryExpansionSystem';
+import {
+  normalizeMapExpansionLevel,
+  canUnlockTerritoryExpansion,
+  unlockNextTerritoryExpansion,
+  getTerritoryExpansionConfig,
+} from './game/TerritoryExpansionSystem';
 import {
   applyMissionReward,
   updateMissionProgress,
@@ -46,6 +52,7 @@ import {
   refreshMissions,
 } from './game/MissionSystem';
 import {
+  Compass,
   Edit2,
   HelpCircle,
   Play,
@@ -93,6 +100,12 @@ export default function App() {
             ? normalizeMapExpansionLevel(parsed.mapExpansionLevel)
             : 0;
 
+        // Migração da flag de conclusão do teste do nível 10
+        parsed.level10TestCompletionShown =
+          typeof parsed.level10TestCompletionShown === 'boolean'
+            ? parsed.level10TestCompletionShown
+            : false;
+
         // Migração e atualização segura das construções (village_hall, sawmill, stoneworks, cooking_pit)
         parsed.buildings = {
           ...INITIAL_BUILDINGS,
@@ -135,6 +148,29 @@ export default function App() {
   const [isTaskBarExpanded, setIsTaskBarExpanded] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [selectedVillagerId, setSelectedVillagerId] = useState<string | null>(null);
+  const [territoryToast, setTerritoryToast] = useState<string | null>(null);
+
+  // Expansão Territorial: cálculo de elegibilidade para o próximo nível
+  const nextTerritoryLevel = (gameState.mapExpansionLevel ?? 0) + 1;
+  const canExpandTerritory = canUnlockTerritoryExpansion(gameState, nextTerritoryLevel);
+
+  // Auto-dismiss territory toast
+  useEffect(() => {
+    if (!territoryToast) return;
+    const t = setTimeout(() => setTerritoryToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [territoryToast]);
+
+  const handleExpandTerritory = () => {
+    if (!canExpandTerritory) return;
+    audio.playFanfare();
+    setGameState((prev) => {
+      const next = unlockNextTerritoryExpansion(prev);
+      const newConfig = getTerritoryExpansionConfig(next.mapExpansionLevel);
+      setTerritoryToast(`Território expandido — ${newConfig.name}!`);
+      return next;
+    });
+  };
 
   // Player name editing state
   const [isEditingName, setIsEditingName] = useState(false);
@@ -487,8 +523,8 @@ export default function App() {
           onDemolishBuilding={handleDemolishBuilding}
         />
 
-        {/* 2. TOP MOBILE HEADER (Optimized for 9:16 vertical smartphone screen) */}
-        <header className="absolute top-0 left-0 right-0 z-30 bg-[#F5EAD9]/95 backdrop-blur-md border-b-3 border-[#33261D] px-2.5 sm:px-3 py-1.5 flex flex-col gap-1.5 shadow-md">
+        {/* 2. TOP MOBILE HEADER (Optimized for 9:16 vertical smartphone screen with safe area) */}
+        <header className="absolute top-0 left-0 right-0 z-30 bg-[#F5EAD9]/95 backdrop-blur-md border-b-3 border-[#33261D] px-2.5 sm:px-3 py-1.5 safe-top flex flex-col gap-1.5 shadow-md">
           {/* Row 1: Player Name, Celestial Time Cycle, Sound & Menu */}
           <div className="flex items-center justify-between gap-1.5">
             {/* Player Name */}
@@ -526,10 +562,22 @@ export default function App() {
                 title="Clique para editar o Nome do Jogador"
               >
                 <span className="text-sm">👑</span>
-                <span className="font-display font-black text-xs text-[#2C241E] truncate max-w-[100px] sm:max-w-none">
+                <span className="font-display font-black text-xs text-[#2C241E] truncate max-w-[90px] sm:max-w-none">
                   {gameState.playerName || 'Líder Tribal'}
                 </span>
                 <Edit2 size={9} className="text-stone-400 group-hover:text-stone-700" />
+              </button>
+            )}
+
+            {/* Territory Expansion Button (shown only when eligible) */}
+            {canExpandTerritory && (
+              <button
+                onClick={handleExpandTerritory}
+                className="px-2.5 py-1 text-xs font-black rounded-xl border-2 border-[#33261D] bg-emerald-500 hover:bg-emerald-600 text-stone-950 shadow-md flex items-center gap-1 animate-pulse cursor-pointer shrink-0 transition-transform active:scale-95"
+                title="Expandir as fronteiras e área construível do território ancestral"
+              >
+                <Compass size={13} className="text-stone-950" />
+                <span>Expandir território</span>
               </button>
             )}
 
@@ -579,7 +627,7 @@ export default function App() {
         </header>
 
       {/* 3. FLOATING SHORTCUT ICON: Designar Tarefas, Obras & Pesquisas */}
-      <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20 pointer-events-none">
+      <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20 pointer-events-none safe-bottom">
         <TaskAssignmentBar
           gameState={gameState}
           isOpen={isTaskBarExpanded}
@@ -597,6 +645,13 @@ export default function App() {
           rates={rates}
         />
       </div>
+        {/* Territory Expansion Notification Toast */}
+        {territoryToast && (
+          <div className="absolute top-24 left-1/2 -translate-x-1/2 z-40 bg-stone-900/95 text-emerald-300 font-extrabold text-xs sm:text-sm px-4 py-2 rounded-2xl shadow-2xl border-2 border-emerald-500/60 flex items-center gap-2 pointer-events-none animate-in fade-in slide-in-from-top-2">
+            <span>✨</span>
+            <span>{territoryToast}</span>
+          </div>
+        )}
       </div>
 
       {/* MODALS */}
@@ -612,6 +667,20 @@ export default function App() {
       />
 
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+
+      {/* Level 10 Test Completion Modal */}
+      <Level10CompletionModal
+        isOpen={
+          (gameState.villageLevel ?? 1) >= 10 &&
+          !gameState.level10TestCompletionShown
+        }
+        onContinue={() => {
+          setGameState((prev) => ({
+            ...prev,
+            level10TestCompletionShown: true,
+          }));
+        }}
+      />
 
       <VictoryModal
         isOpen={gameState.gameWon}

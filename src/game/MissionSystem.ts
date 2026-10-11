@@ -53,7 +53,6 @@ export const MISSION_TEMPLATES: MissionTemplate[] = [
     rewardXP: 50,
     rewardKnowledge: 10,
     levelMin: 2,
-    levelMax: 5,
     repeatable: true,
   },
   {
@@ -79,7 +78,6 @@ export const MISSION_TEMPLATES: MissionTemplate[] = [
     rewardXP: 60,
     rewardKnowledge: 10,
     levelMin: 2,
-    levelMax: 6,
     repeatable: true,
   },
   {
@@ -105,7 +103,6 @@ export const MISSION_TEMPLATES: MissionTemplate[] = [
     rewardXP: 65,
     rewardKnowledge: 15,
     levelMin: 3,
-    levelMax: 8,
     repeatable: true,
   },
   {
@@ -118,7 +115,6 @@ export const MISSION_TEMPLATES: MissionTemplate[] = [
     rewardXP: 50,
     rewardKnowledge: 10,
     levelMin: 2,
-    levelMax: 7,
     repeatable: true,
   },
 

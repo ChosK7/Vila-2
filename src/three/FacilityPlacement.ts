@@ -30,12 +30,6 @@ export interface AvailableFacilityItem {
 
 export const FACILITY_STORAGE_KEY = 'vila_ancestral_facility_positions_v1';
 
-export const MAP_BOUNDS = {
-  MIN_COORD: -23,
-  MAX_COORD: 23,
-  PRECISION: 0.1,
-} as const;
-
 export const DEFAULT_FACILITY_CONFIGS: Record<string, FacilityConfig> = {
   village_hall: {
     name: 'Sede da Vila',

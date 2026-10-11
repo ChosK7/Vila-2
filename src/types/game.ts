@@ -202,4 +202,5 @@ export interface GameState {
   soundEnabled: boolean;
   gameWon: boolean;
   zigguratStagesCompleted: number;
+  level10TestCompletionShown?: boolean;
 }

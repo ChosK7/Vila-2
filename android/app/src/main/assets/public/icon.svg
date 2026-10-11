@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="skyGrad" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#FAE8C8"/>
+      <stop offset="60%" stop-color="#E5B84B"/>
+      <stop offset="100%" stop-color="#8C5A32"/>
+    </radialGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#2C241E" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="512" height="512" rx="108" fill="url(#skyGrad)"/>
+
+  <!-- Steppe Earth Arc -->
+  <path d="M 0 380 Q 256 310 512 380 L 512 512 L 0 512 Z" fill="#6B4423"/>
+  <path d="M 0 420 Q 256 360 512 420 L 512 512 L 0 512 Z" fill="#422914"/>
+
+  <!-- Campfire / Tribal Hut Silhouette -->
+  <g filter="url(#shadow)" transform="translate(136, 120)">
+    <!-- Main Hut Cone -->
+    <polygon points="120,40 30,220 210,220" fill="#E8B953" stroke="#2C241E" stroke-width="8" stroke-linejoin="round"/>
+    <!-- Thatch Struts -->
+    <line x1="120" y1="40" x2="60" y2="220" stroke="#8C5A32" stroke-width="6"/>
+    <line x1="120" y1="40" x2="180" y2="220" stroke="#8C5A32" stroke-width="6"/>
+    <line x1="120" y1="40" x2="120" y2="220" stroke="#8C5A32" stroke-width="6"/>
+    <!-- Doorway -->
+    <path d="M 100 220 L 100 160 Q 120 145 140 160 L 140 220 Z" fill="#2C241E"/>
+    
+    <!-- Stone Base Ring -->
+    <ellipse cx="120" cy="225" rx="95" ry="14" fill="#948877" stroke="#2C241E" stroke-width="5"/>
+
+    <!-- Sacred Campfire Flame -->
+    <path d="M 120 200 Q 105 180 115 160 Q 120 140 120 130 Q 125 145 130 160 Q 138 180 120 200 Z" fill="#EF4444"/>
+    <path d="M 120 195 Q 112 182 118 168 Q 120 155 120 150 Q 123 158 126 168 Q 130 182 120 195 Z" fill="#FACC15"/>
+  </g>
+
+  <!-- Wheat Ears / Sheaves -->
+  <g transform="translate(350, 240) rotate(20)">
+    <line x1="0" y1="120" x2="0" y2="0" stroke="#FBBF24" stroke-width="8" stroke-linecap="round"/>
+    <ellipse cx="-12" cy="20" rx="10" ry="16" fill="#FDE68A" stroke="#B45309" stroke-width="3" transform="rotate(-30, -12, 20)"/>
+    <ellipse cx="12" cy="20" rx="10" ry="16" fill="#FDE68A" stroke="#B45309" stroke-width="3" transform="rotate(30, 12, 20)"/>
+    <ellipse cx="-14" cy="55" rx="10" ry="16" fill="#FDE68A" stroke="#B45309" stroke-width="3" transform="rotate(-30, -14, 55)"/>
+    <ellipse cx="14" cy="55" rx="10" ry="16" fill="#FDE68A" stroke="#B45309" stroke-width="3" transform="rotate(30, 14, 55)"/>
+    <ellipse cx="0" cy="0" rx="8" ry="18" fill="#FDE68A" stroke="#B45309" stroke-width="3"/>
+  </g>
+
+  <g transform="translate(90, 280) rotate(-25)">
+    <line x1="0" y1="100" x2="0" y2="0" stroke="#FBBF24" stroke-width="7" stroke-linecap="round"/>
+    <ellipse cx="-10" cy="20" rx="9" ry="14" fill="#FDE68A" stroke="#B45309" stroke-width="3" transform="rotate(-30, -10, 20)"/>
+    <ellipse cx="10" cy="20" rx="9" ry="14" fill="#FDE68A" stroke="#B45309" stroke-width="3" transform="rotate(30, 10, 20)"/>
+    <ellipse cx="0" cy="0" rx="7" ry="16" fill="#FDE68A" stroke="#B45309" stroke-width="3"/>
+  </g>
+</svg>

@@ -13,7 +13,13 @@ export const FacilityMoveToggleButton: React.FC<FacilityMoveToggleButtonProps> =
 }) => {
   return (
     <button
-      onClick={onToggle}
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
       className={`px-2.5 py-1 text-xs font-bold rounded-xl border-2 border-[#33261D] flex items-center gap-1.5 shadow-md transition-all cursor-pointer ${
         isMoveMode
           ? 'bg-amber-400 text-stone-950 ring-2 ring-stone-900 font-extrabold shadow-sm'
@@ -55,7 +61,13 @@ export const FacilityPlacementControls: React.FC<FacilityPlacementControlsProps>
     <>
       {/* Move Facility Floating Toolbar */}
       {isMoveMode && (
-        <div className="absolute top-[6.2rem] left-1/2 -translate-x-1/2 z-20 w-[94%] max-w-xl bg-[#FDFBF7]/95 backdrop-blur-md border-3 border-[#33261D] rounded-2xl p-3 shadow-2xl animate-in fade-in slide-in-from-top-3 pointer-events-auto">
+        <div
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          className="absolute top-[6.2rem] left-1/2 -translate-x-1/2 z-20 w-[94%] max-w-xl bg-[#FDFBF7]/95 backdrop-blur-md border-3 border-[#33261D] rounded-2xl p-3 shadow-2xl animate-in fade-in slide-in-from-top-3 pointer-events-auto"
+        >
           <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-stone-200 pb-2 mb-2">
             <div className="flex items-center gap-2">
               <span className="text-lg">🏗️</span>
@@ -73,7 +85,13 @@ export const FacilityPlacementControls: React.FC<FacilityPlacementControlsProps>
 
             <div className="flex items-center gap-1.5 ml-auto">
               <button
-                onClick={onResetPositions}
+                onPointerDown={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onResetPositions();
+                }}
                 className="px-2 py-1 text-[11px] font-bold rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-200 transition-colors flex items-center gap-1 cursor-pointer"
                 title="Restaurar posições originais da aldeia"
               >
@@ -81,7 +99,13 @@ export const FacilityPlacementControls: React.FC<FacilityPlacementControlsProps>
                 <span>Padrão</span>
               </button>
               <button
-                onClick={onCloseMoveMode}
+                onPointerDown={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCloseMoveMode();
+                }}
                 className="px-3 py-1 text-xs font-extrabold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shadow-xs transition-colors flex items-center gap-1 cursor-pointer"
               >
                 <Check size={13} />
@@ -98,7 +122,13 @@ export const FacilityPlacementControls: React.FC<FacilityPlacementControlsProps>
               return (
                 <button
                   key={fac.id}
-                  onClick={() => onSelectFacility(fac.id)}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectFacility(fac.id);
+                  }}
                   className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
                     isSelected
                       ? 'bg-amber-400 text-stone-950 ring-2 ring-stone-900 shadow-xs font-extrabold scale-105'
