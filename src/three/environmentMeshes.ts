@@ -1,19 +1,19 @@
 import * as THREE from 'three';
 
-// Shared materials for lush natural environment
-const darkWoodMat = new THREE.MeshStandardMaterial({ color: 0x4a2e16, roughness: 0.9 });
-const birchWoodMat = new THREE.MeshStandardMaterial({ color: 0xe8e2d5, roughness: 0.8 });
-const birchMarkingMat = new THREE.MeshStandardMaterial({ color: 0x332822, roughness: 0.95 });
-const pineFoliageMat1 = new THREE.MeshStandardMaterial({ color: 0x1b4324, roughness: 0.85 }); // deep pine green
-const pineFoliageMat2 = new THREE.MeshStandardMaterial({ color: 0x24542d, roughness: 0.85 }); // forest conifer
-const acaciaFoliageMat = new THREE.MeshStandardMaterial({ color: 0x6e8b3d, roughness: 0.9 }); // savanna olive-gold
-const oakFoliageMat1 = new THREE.MeshStandardMaterial({ color: 0x3d6e22, roughness: 0.88 }); // rich oak green
-const oakFoliageMat2 = new THREE.MeshStandardMaterial({ color: 0x4f822f, roughness: 0.88 }); // vibrant spring oak
-const autumnFoliageMat = new THREE.MeshStandardMaterial({ color: 0xab6726, roughness: 0.9 }); // golden steppe amber
-const poplarFoliageMat = new THREE.MeshStandardMaterial({ color: 0x447738, roughness: 0.85 }); // upright olive green
-const cypressFoliageMat = new THREE.MeshStandardMaterial({ color: 0x1e3d22, roughness: 0.88 }); // deep cypress
-const birchFoliageMat = new THREE.MeshStandardMaterial({ color: 0x76a337, roughness: 0.9 }); // bright birch green
-const willowFoliageMat = new THREE.MeshStandardMaterial({ color: 0x5a8738, roughness: 0.92 }); // weeping willow
+// Shared materials for lush anime nature environment (Studio Ghibli inspired)
+const darkWoodMat = new THREE.MeshStandardMaterial({ color: 0x5c3a21, roughness: 0.8 });
+const birchWoodMat = new THREE.MeshStandardMaterial({ color: 0xfbf6ee, roughness: 0.7 });
+const birchMarkingMat = new THREE.MeshStandardMaterial({ color: 0x4a3b32, roughness: 0.85 });
+const pineFoliageMat1 = new THREE.MeshStandardMaterial({ color: 0x226b42, roughness: 0.75 }); // vibrant anime pine green
+const pineFoliageMat2 = new THREE.MeshStandardMaterial({ color: 0x348c58, roughness: 0.75 }); // bright anime emerald conifer
+const acaciaFoliageMat = new THREE.MeshStandardMaterial({ color: 0x88b04b, roughness: 0.8 }); // lime-gold anime canopy
+const oakFoliageMat1 = new THREE.MeshStandardMaterial({ color: 0x4fa838, roughness: 0.78 }); // lush Ghibli oak green
+const oakFoliageMat2 = new THREE.MeshStandardMaterial({ color: 0x6bc44d, roughness: 0.78 }); // bright sunlit anime oak
+const autumnFoliageMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.8 }); // golden anime amber
+const poplarFoliageMat = new THREE.MeshStandardMaterial({ color: 0x5fa349, roughness: 0.75 }); // vibrant anime poplar
+const cypressFoliageMat = new THREE.MeshStandardMaterial({ color: 0x295c3b, roughness: 0.8 }); // anime cypress
+const birchFoliageMat = new THREE.MeshStandardMaterial({ color: 0x8ed147, roughness: 0.78 }); // radiant anime birch lime
+const willowFoliageMat = new THREE.MeshStandardMaterial({ color: 0x6db84e, roughness: 0.82 }); // dreamy weeping willow
 
 const shrubMat1 = new THREE.MeshStandardMaterial({ color: 0x4a7c29, roughness: 0.9 });
 const shrubMat2 = new THREE.MeshStandardMaterial({ color: 0x6b8e23, roughness: 0.92 });

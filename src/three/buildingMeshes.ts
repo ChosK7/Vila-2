@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 
-// Materials
-const woodMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.85 });
-const darkWoodMat = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.9 });
-const thatchMat = new THREE.MeshStandardMaterial({ color: 0xca8a04, roughness: 0.95 });
-const stoneMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.8 });
-const darkStoneMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.85 });
-const adobeMat = new THREE.MeshStandardMaterial({ color: 0xc49a6c, roughness: 0.9 });
-const mudbrickMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.9 });
-const goldMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.4, roughness: 0.3 });
+// Materials (Anime / Cel-shaded aesthetic)
+const woodMat = new THREE.MeshStandardMaterial({ color: 0x935116, roughness: 0.7 });
+const darkWoodMat = new THREE.MeshStandardMaterial({ color: 0x562708, roughness: 0.75 });
+const thatchMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.8 }); // vibrant anime golden thatch
+const stoneMat = new THREE.MeshStandardMaterial({ color: 0xa8b2d1, roughness: 0.65 }); // clean anime stone
+const darkStoneMat = new THREE.MeshStandardMaterial({ color: 0x717c96, roughness: 0.7 });
+const adobeMat = new THREE.MeshStandardMaterial({ color: 0xdfad7b, roughness: 0.75 });
+const mudbrickMat = new THREE.MeshStandardMaterial({ color: 0xc26d1a, roughness: 0.75 });
+const goldMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.5, roughness: 0.25 });
 
 export function createCampfireMesh(): THREE.Group {
   const group = new THREE.Group();

@@ -419,11 +419,11 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     const width = container.clientWidth;
     const height = container.clientHeight;
 
-    // Scene
+    // Scene (Anime aesthetic sky and soft stylized fog)
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.background = new THREE.Color(0xdce7eb);
-    scene.fog = new THREE.FogExp2(0xdce7eb, 0.022);
+    scene.background = new THREE.Color(0x70c5ff);
+    scene.fog = new THREE.FogExp2(0xa5dcf9, 0.016);
 
     // Camera
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
@@ -463,12 +463,12 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     const posAttr = groundGeo.attributes.position;
     const colors: number[] = [];
 
-    // Precompute vertex heights and organic earthy tints
-    const colLush = new THREE.Color(0x6b8f36); // fertile farm and forest grass
-    const colDry = new THREE.Color(0xc4a162); // steppe savanna warm ochre
-    const colDirt = new THREE.Color(0xbfa070); // trodden village soil
-    const colClay = new THREE.Color(0xb5784c); // riverbank clay and moist silt
-    const colStone = new THREE.Color(0x948877); // stony ridge grey
+    // Precompute vertex heights and anime meadow & lush grassy tints
+    const colLush = new THREE.Color(0x7ec850); // Vibrant anime meadow grass (Studio Ghibli style)
+    const colDry = new THREE.Color(0xe8ca68); // Warm sun-kissed anime savanna ochre
+    const colDirt = new THREE.Color(0xd4a373); // Soft anime village trail earth
+    const colClay = new THREE.Color(0xd97736); // Rich warm terracotta clay
+    const colStone = new THREE.Color(0x9ca3af); // Cool anime cliffstone grey
 
     for (let i = 0; i < posAttr.count; i++) {
       const vx = posAttr.getX(i);
@@ -534,6 +534,55 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     const moveRing = createFacilityMoveRing();
     scene.add(moveRing);
     moveRingRef.current = moveRing;
+
+    // 4. Stylized Puffy Anime Floating Clouds (Studio Ghibli aesthetic)
+    const cloudsGroup = new THREE.Group();
+    cloudsGroup.name = 'anime_clouds_group';
+    const cloudMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.95,
+      metalness: 0.0,
+      emissive: 0xf0f9ff,
+      emissiveIntensity: 0.15,
+    });
+
+    const cloudClusterCoords = [
+      { x: -18, y: 16, z: -15, scale: 1.4 },
+      { x: 12, y: 18, z: -18, scale: 1.6 },
+      { x: 22, y: 15, z: 8, scale: 1.2 },
+      { x: -22, y: 17, z: 12, scale: 1.5 },
+      { x: 0, y: 20, z: -25, scale: 1.8 },
+      { x: 15, y: 19, z: 20, scale: 1.3 },
+    ];
+
+    cloudClusterCoords.forEach((coord, cIdx) => {
+      const cluster = new THREE.Group();
+      cluster.position.set(coord.x, coord.y, coord.z);
+      cluster.scale.setScalar(coord.scale);
+
+      // Puffy cloud puffs (intersecting spheres)
+      const puffOffsets = [
+        { dx: 0, dy: 0, dz: 0, r: 1.8 },
+        { dx: 1.4, dy: -0.2, dz: 0.2, r: 1.4 },
+        { dx: -1.3, dy: -0.3, dz: -0.1, r: 1.3 },
+        { dx: 0.7, dy: 0.6, dz: -0.2, r: 1.2 },
+        { dx: -0.5, dy: 0.4, dz: 0.3, r: 1.1 },
+        { dx: 2.2, dy: -0.5, dz: 0.1, r: 0.9 },
+      ];
+
+      puffOffsets.forEach((p) => {
+        const pGeo = new THREE.SphereGeometry(p.r, 12, 10);
+        const pMesh = new THREE.Mesh(pGeo, cloudMat);
+        pMesh.position.set(p.dx, p.dy, p.dz);
+        pMesh.scale.set(1.1, 0.75, 1.0); // flat bottom anime cloud
+        pMesh.castShadow = false;
+        cluster.add(pMesh);
+      });
+
+      cluster.userData = { baseSpeed: 0.3 + (cIdx % 3) * 0.15 };
+      cloudsGroup.add(cluster);
+    });
+    scene.add(cloudsGroup);
 
     // Night Celestial Features: Stars dome and Glowing Moon
     const stars = createNightStars();
@@ -716,6 +765,17 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
         if (innerFlame) {
           innerFlame.scale.y = 1 + Math.cos(time * 15) * 0.22;
         }
+      }
+
+      // Gentle drift for anime puffy clouds
+      if (cloudsGroup) {
+        cloudsGroup.children.forEach((cluster) => {
+          const speed = (cluster.userData?.baseSpeed || 0.3) * delta;
+          cluster.position.x += speed;
+          if (cluster.position.x > 32) {
+            cluster.position.x = -32;
+          }
+        });
       }
 
       // Smooth Atmospheric Lighting & Day/Night Transition

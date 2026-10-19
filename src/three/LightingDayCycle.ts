@@ -29,61 +29,61 @@ export interface LightingPreset {
 
 export const LIGHTING_PRESETS: Record<TimeOfDay, LightingPreset> = {
   day: {
-    skyColor: new THREE.Color(0xdce7eb),
-    fogColor: new THREE.Color(0xdce7eb),
-    fogDensity: 0.022,
-    ambientColor: new THREE.Color(0xfef3c7),
-    ambientIntensity: 0.95,
-    sunColor: new THREE.Color(0xffedd5),
-    sunIntensity: 1.65,
-    sunPos: new THREE.Vector3(15, 25, 15),
-    groundColor: new THREE.Color(0xdec69a),
+    skyColor: new THREE.Color(0x70c5ff), // Vibrant Ghibli Anime Azure Sky
+    fogColor: new THREE.Color(0xa5dcf9), // Bright soft atmospheric horizon mist
+    fogDensity: 0.016, // Clear, crisp anime visibility
+    ambientColor: new THREE.Color(0xfff6db), // Warm golden anime skylight
+    ambientIntensity: 1.15,
+    sunColor: new THREE.Color(0xfff0aa), // Luminous anime sunlight
+    sunIntensity: 1.85,
+    sunPos: new THREE.Vector3(15, 28, 15),
+    groundColor: new THREE.Color(0x7bc64e),
     campfireLightIntensity: 1.2,
     starsOpacity: 0.0,
     moonOpacity: 0.0,
   },
   sunset: {
-    skyColor: new THREE.Color(0xeb8e55),
-    fogColor: new THREE.Color(0xf5a575),
-    fogDensity: 0.024,
-    ambientColor: new THREE.Color(0xfde047),
-    ambientIntensity: 0.65,
-    sunColor: new THREE.Color(0xf97316),
-    sunIntensity: 1.35,
-    sunPos: new THREE.Vector3(26, 11, -12),
-    groundColor: new THREE.Color(0xd9a26c),
-    campfireLightIntensity: 2.2,
-    starsOpacity: 0.25,
-    moonOpacity: 0.35,
+    skyColor: new THREE.Color(0xff708d), // Makoto Shinkai magical anime twilight (pink/orange)
+    fogColor: new THREE.Color(0xffa175), // Coral golden evening mist
+    fogDensity: 0.019,
+    ambientColor: new THREE.Color(0xffd17d),
+    ambientIntensity: 0.85,
+    sunColor: new THREE.Color(0xff8c42),
+    sunIntensity: 1.6,
+    sunPos: new THREE.Vector3(26, 12, -12),
+    groundColor: new THREE.Color(0xe08f53),
+    campfireLightIntensity: 2.4,
+    starsOpacity: 0.4,
+    moonOpacity: 0.5,
   },
   night: {
-    // tons azulados e sombrios de noite
-    skyColor: new THREE.Color(0x0f172a),
-    fogColor: new THREE.Color(0x1e293b),
-    fogDensity: 0.028,
-    ambientColor: new THREE.Color(0x172554),
-    ambientIntensity: 0.32,
-    sunColor: new THREE.Color(0x60a5fa), // luar azulado límpido
-    sunIntensity: 0.38,
+    // Deep anime indigo night with bright silver moonlight
+    skyColor: new THREE.Color(0x131842),
+    fogColor: new THREE.Color(0x232966),
+    fogDensity: 0.022,
+    ambientColor: new THREE.Color(0x2b3875),
+    ambientIntensity: 0.48,
+    sunColor: new THREE.Color(0x93c5fd), // glowing cyan-blue moonlight
+    sunIntensity: 0.55,
     sunPos: new THREE.Vector3(-18, 26, -18),
-    groundColor: new THREE.Color(0x55493d),
-    campfireLightIntensity: 3.8, // fogueira brilhando intensamente no escuro!
-    starsOpacity: 0.92,
+    groundColor: new THREE.Color(0x31463e),
+    campfireLightIntensity: 4.2, // cozy crackling campfire
+    starsOpacity: 1.0,
     moonOpacity: 1.0,
   },
   dawn: {
-    skyColor: new THREE.Color(0xc084fc),
-    fogColor: new THREE.Color(0xedd5f5),
-    fogDensity: 0.024,
-    ambientColor: new THREE.Color(0xfef3c7),
-    ambientIntensity: 0.72,
-    sunColor: new THREE.Color(0xfde047),
-    sunIntensity: 1.25,
-    sunPos: new THREE.Vector3(-22, 12, 16),
-    groundColor: new THREE.Color(0xcbb88b),
-    campfireLightIntensity: 1.6,
-    starsOpacity: 0.15,
-    moonOpacity: 0.15,
+    skyColor: new THREE.Color(0xb589d6), // Dreamy lavender anime sunrise
+    fogColor: new THREE.Color(0xf6d6d6), // Peach morning mist
+    fogDensity: 0.018,
+    ambientColor: new THREE.Color(0xffeedb),
+    ambientIntensity: 0.9,
+    sunColor: new THREE.Color(0xffd56b),
+    sunIntensity: 1.4,
+    sunPos: new THREE.Vector3(-22, 14, 16),
+    groundColor: new THREE.Color(0x98b86d),
+    campfireLightIntensity: 1.8,
+    starsOpacity: 0.2,
+    moonOpacity: 0.2,
   },
 };
 

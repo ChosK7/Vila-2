@@ -22,90 +22,166 @@ export function createCharacterMesh(villager: Villager): CharacterRig {
   const root = new THREE.Group();
   root.name = `character-${villager.id}`;
 
-  // Materials
+  // Materials (Anime Chibi Aesthetic)
   const skinMaterial = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    roughness: 0.3,
-    metalness: 0.05,
+    color: 0xffe0bd, // Warm anime peachy skin
+    roughness: 0.35,
+    metalness: 0.0,
   });
 
-  const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0x111111 });
-  const hairColor = villager.hairStyle === 'elder' ? 0x9ca3af : 0x221f1d;
-  const hairMaterial = new THREE.MeshStandardMaterial({ color: hairColor, roughness: 0.9 });
+  // Anime Eyes Materials
+  const eyeScleraMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const eyeIrisMaterial = new THREE.MeshBasicMaterial({ color: 0x2563eb }); // Vibrant anime sapphire blue
+  const eyePupilMaterial = new THREE.MeshBasicMaterial({ color: 0x0f172a }); // Deep pupil
+  const eyeSparkleMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff }); // Catchlight glimmer
+  const blushMaterial = new THREE.MeshBasicMaterial({
+    color: 0xf43f5e,
+    transparent: true,
+    opacity: 0.45,
+  }); // Cute anime pink blush
+
+  const hairColor = villager.hairStyle === 'elder' ? 0xe2e8f0 : (villager.id.charCodeAt(0) % 2 === 0 ? 0x3e2723 : 0x78350f);
+  const hairMaterial = new THREE.MeshStandardMaterial({ color: hairColor, roughness: 0.65 });
 
   const tunicColor = new THREE.Color(villager.tunicColor || '#8C5A32');
   const tunicMaterial = new THREE.MeshStandardMaterial({
     color: tunicColor,
-    roughness: 0.6,
+    roughness: 0.45,
   });
 
-  const beltMaterial = new THREE.MeshStandardMaterial({ color: 0x3e2723, roughness: 0.8 });
-  const limbMaterial = new THREE.MeshStandardMaterial({ color: 0x1e1b18, roughness: 0.5 });
+  const beltMaterial = new THREE.MeshStandardMaterial({ color: 0x271911, roughness: 0.7 });
+  const limbMaterial = new THREE.MeshStandardMaterial({ color: 0xffe0bd, roughness: 0.4 }); // Skin-tone chibi arms
+  const shoeMaterial = new THREE.MeshStandardMaterial({ color: 0x451a03, roughness: 0.7 });
 
-  // 1. Head (Smooth white sphere)
-  const headGeo = new THREE.SphereGeometry(0.32, 24, 24);
+  // 1. Head (Expressive anime chibi head)
+  const headGeo = new THREE.SphereGeometry(0.34, 24, 24);
   const head = new THREE.Mesh(headGeo, skinMaterial);
   head.position.y = 1.35;
+  head.scale.set(1.05, 1.0, 1.0); // Slightly wider cute chibi face
   head.castShadow = true;
   root.add(head);
 
-  // Eyes (Two black dots on front face)
-  const eyeGeo = new THREE.SphereGeometry(0.04, 12, 12);
-  const leftEye = new THREE.Mesh(eyeGeo, eyeMaterial);
-  leftEye.position.set(-0.09, 0.04, 0.29);
-  head.add(leftEye);
+  // Big Expressive Anime Eyes (White sclera + colorful iris + pupil + catchlight sparkles)
+  const createAnimeEye = (isRight: boolean) => {
+    const eyeGroup = new THREE.Group();
+    const xPos = isRight ? 0.105 : -0.105;
+    eyeGroup.position.set(xPos, 0.03, 0.30);
+    eyeGroup.rotation.y = isRight ? 0.18 : -0.18;
 
-  const rightEye = new THREE.Mesh(eyeGeo, eyeMaterial);
-  rightEye.position.set(0.09, 0.04, 0.29);
-  head.add(rightEye);
+    // Sclera base (White oval)
+    const scleraGeo = new THREE.SphereGeometry(0.065, 14, 14);
+    const sclera = new THREE.Mesh(scleraGeo, eyeScleraMaterial);
+    sclera.scale.set(0.9, 1.25, 0.25);
+    eyeGroup.add(sclera);
 
-  // Eyebrows
-  const browGeo = new THREE.BoxGeometry(0.07, 0.015, 0.02);
-  const leftBrow = new THREE.Mesh(browGeo, eyeMaterial);
-  leftBrow.position.set(-0.09, 0.12, 0.29);
-  leftBrow.rotation.z = -0.05;
+    // Iris (Vibrant blue/hazel)
+    const irisGeo = new THREE.CircleGeometry(0.052, 16);
+    const iris = new THREE.Mesh(irisGeo, eyeIrisMaterial);
+    iris.position.set(0, -0.005, 0.02);
+    eyeGroup.add(iris);
+
+    // Pupil
+    const pupilGeo = new THREE.CircleGeometry(0.032, 14);
+    const pupil = new THREE.Mesh(pupilGeo, eyePupilMaterial);
+    pupil.position.set(0, 0, 0.025);
+    eyeGroup.add(pupil);
+
+    // Big anime sparkle (upper-left shine)
+    const sparkleBigGeo = new THREE.CircleGeometry(0.016, 10);
+    const sparkleBig = new THREE.Mesh(sparkleBigGeo, eyeSparkleMaterial);
+    sparkleBig.position.set(-0.015, 0.018, 0.03);
+    eyeGroup.add(sparkleBig);
+
+    // Small anime sparkle (lower-right shine)
+    const sparkleSmallGeo = new THREE.CircleGeometry(0.008, 8);
+    const sparkleSmall = new THREE.Mesh(sparkleSmallGeo, eyeSparkleMaterial);
+    sparkleSmall.position.set(0.015, -0.016, 0.03);
+    eyeGroup.add(sparkleSmall);
+
+    // Eyelash upper arc
+    const lashGeo = new THREE.TorusGeometry(0.055, 0.008, 6, 12, Math.PI * 0.7);
+    const lash = new THREE.Mesh(lashGeo, eyePupilMaterial);
+    lash.position.set(0, 0.045, 0.02);
+    lash.rotation.z = isRight ? -0.15 : Math.PI - 0.15;
+    eyeGroup.add(lash);
+
+    return eyeGroup;
+  };
+
+  head.add(createAnimeEye(false)); // Left eye
+  head.add(createAnimeEye(true));  // Right eye
+
+  // Cute Anime Rosy Blush Cheeks
+  const leftBlushGeo = new THREE.CircleGeometry(0.045, 12);
+  const leftBlush = new THREE.Mesh(leftBlushGeo, blushMaterial);
+  leftBlush.position.set(-0.16, -0.08, 0.27);
+  leftBlush.rotation.y = -0.45;
+  head.add(leftBlush);
+
+  const rightBlush = new THREE.Mesh(leftBlushGeo, blushMaterial);
+  rightBlush.position.set(0.16, -0.08, 0.27);
+  rightBlush.rotation.y = 0.45;
+  head.add(rightBlush);
+
+  // Cute small anime mouth
+  const mouthGeo = new THREE.TorusGeometry(0.022, 0.005, 6, 10, Math.PI);
+  const mouth = new THREE.Mesh(mouthGeo, eyePupilMaterial);
+  mouth.position.set(0, -0.12, 0.31);
+  mouth.rotation.x = Math.PI * 0.1;
+  head.add(mouth);
+
+  // Eyebrows (delicate expressive anime brows)
+  const browGeo = new THREE.BoxGeometry(0.08, 0.018, 0.02);
+  const leftBrow = new THREE.Mesh(browGeo, hairMaterial);
+  leftBrow.position.set(-0.11, 0.15, 0.29);
+  leftBrow.rotation.z = -0.08;
   head.add(leftBrow);
 
-  const rightBrow = new THREE.Mesh(browGeo, eyeMaterial);
-  rightBrow.position.set(0.09, 0.12, 0.29);
-  rightBrow.rotation.z = 0.05;
+  const rightBrow = new THREE.Mesh(browGeo, hairMaterial);
+  rightBrow.position.set(0.11, 0.15, 0.29);
+  rightBrow.rotation.z = 0.08;
   head.add(rightBrow);
 
-  // Hair Style
+  // Anime Hair with Tufts and Fringe
+  const hairCapGeo = new THREE.SphereGeometry(0.36, 18, 18, 0, Math.PI * 2, 0, Math.PI * 0.55);
+  const hairCap = new THREE.Mesh(hairCapGeo, hairMaterial);
+  hairCap.position.set(0, 0.04, -0.02);
+  head.add(hairCap);
+
+  // Anime Hair Front Bangs / Fringe
+  for (let f = -2; f <= 2; f++) {
+    const bangGeo = new THREE.ConeGeometry(0.07, 0.18, 6);
+    const bang = new THREE.Mesh(bangGeo, hairMaterial);
+    bang.position.set(f * 0.09, 0.24 - Math.abs(f) * 0.03, 0.25);
+    bang.rotation.x = 0.6;
+    bang.rotation.z = -f * 0.2;
+    head.add(bang);
+  }
+
+  // Hair Style custom flourishes
   if (villager.hairStyle === 'spiky') {
     for (let i = -2; i <= 2; i++) {
-      const spikeGeo = new THREE.ConeGeometry(0.05, 0.16, 6);
+      const spikeGeo = new THREE.ConeGeometry(0.07, 0.24, 6);
       const spike = new THREE.Mesh(spikeGeo, hairMaterial);
-      spike.position.set(i * 0.07, 0.32, 0.05 - Math.abs(i) * 0.03);
-      spike.rotation.z = -i * 0.15;
+      spike.position.set(i * 0.09, 0.36, 0.05 - Math.abs(i) * 0.04);
+      spike.rotation.z = -i * 0.22;
       head.add(spike);
     }
-  } else if (villager.hairStyle === 'side' || villager.hairStyle === 'wavy') {
-    const hairCapGeo = new THREE.SphereGeometry(0.33, 16, 16, 0, Math.PI * 2, 0, Math.PI * 0.45);
-    const hairCap = new THREE.Mesh(hairCapGeo, hairMaterial);
-    hairCap.position.y = 0.04;
-    head.add(hairCap);
   } else if (villager.hairStyle === 'elder') {
-    // White/grey hair cap + beard
-    const hairCapGeo = new THREE.SphereGeometry(0.33, 16, 16, 0, Math.PI * 2, 0, Math.PI * 0.45);
-    const hairCap = new THREE.Mesh(hairCapGeo, hairMaterial);
-    hairCap.position.y = 0.04;
-    head.add(hairCap);
-
     // Beard
-    const beardGeo = new THREE.ConeGeometry(0.12, 0.25, 8);
+    const beardGeo = new THREE.ConeGeometry(0.14, 0.28, 8);
     const beard = new THREE.Mesh(beardGeo, hairMaterial);
-    beard.position.set(0, -0.22, 0.22);
+    beard.position.set(0, -0.22, 0.23);
     beard.rotation.x = 0.2;
     head.add(beard);
   } else if (villager.hairStyle === 'bun') {
-    const bunGeo = new THREE.SphereGeometry(0.12, 12, 12);
+    const bunGeo = new THREE.SphereGeometry(0.14, 12, 12);
     const bun = new THREE.Mesh(bunGeo, hairMaterial);
-    bun.position.set(0, 0.36, -0.1);
+    bun.position.set(0, 0.40, -0.12);
     head.add(bun);
   }
 
-  // 2. Body / Tunic (Tapered cylinder / dress)
+  // 2. Body / Tunic (Cute chibi proportioned torso)
   const bodyGeo = new THREE.CylinderGeometry(0.2, 0.32, 0.65, 16);
   const body = new THREE.Mesh(bodyGeo, tunicMaterial);
   body.position.y = 0.85;
@@ -130,7 +206,7 @@ export function createCharacterMesh(villager: Villager): CharacterRig {
   leftLegMesh.castShadow = true;
   leftLeg.add(leftLegMesh);
 
-  const leftFoot = new THREE.Mesh(footGeo, limbMaterial);
+  const leftFoot = new THREE.Mesh(footGeo, shoeMaterial);
   leftFoot.position.set(0, -0.48, 0.03);
   leftLeg.add(leftFoot);
   root.add(leftLeg);
@@ -143,7 +219,7 @@ export function createCharacterMesh(villager: Villager): CharacterRig {
   rightLegMesh.castShadow = true;
   rightLeg.add(rightLegMesh);
 
-  const rightFoot = new THREE.Mesh(footGeo, limbMaterial);
+  const rightFoot = new THREE.Mesh(footGeo, shoeMaterial);
   rightFoot.position.set(0, -0.48, 0.03);
   rightLeg.add(rightFoot);
   root.add(rightLeg);

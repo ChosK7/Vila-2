@@ -510,9 +510,9 @@ export default function App() {
   const assignedCount = gameState.villagers.length - idleCount;
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#18130E] flex flex-col items-center justify-center relative select-none p-0 sm:p-2">
-      {/* Mobile Screen Container: Strictly 9:16 Portrait for Smartphone */}
-      <div className="relative overflow-hidden bg-[#DCE7EB] font-sans selection:bg-[#DEB887] select-none h-full max-h-[calc(100vw*16/9)] w-full max-w-[calc(100vh*9/16)] aspect-[9/16] shadow-2xl shadow-black/95 sm:rounded-[2.2rem] sm:border-[5px] border-[#33261D]">
+    <div className="h-screen w-screen overflow-hidden bg-[#0f172a] flex flex-col items-center justify-center relative select-none p-0 sm:p-2 font-hand">
+      {/* Mobile Screen Container: Strictly 9:16 Portrait for Smartphone with Anime Chamfer */}
+      <div className="relative overflow-hidden bg-[#70c5ff] font-hand selection:bg-[#fde047] select-none h-full max-h-[calc(100vw*16/9)] w-full max-w-[calc(100vh*9/16)] aspect-[9/16] shadow-2xl shadow-black/95 sm:rounded-[2.4rem] sm:border-[4px] border-[#1e1b4b] ring-2 ring-sky-300/30">
         {/* 1. 3D GAME VIEWPORT (Fills the phone viewport) */}
         <ThreeVillageScene
           gameState={gameState}
@@ -523,8 +523,8 @@ export default function App() {
           onDemolishBuilding={handleDemolishBuilding}
         />
 
-        {/* 2. TOP MOBILE HEADER (Optimized for 9:16 vertical smartphone screen with safe area) */}
-        <header className="absolute top-0 left-0 right-0 z-30 bg-[#F5EAD9]/95 backdrop-blur-md border-b-3 border-[#33261D] px-2.5 sm:px-3 py-1.5 safe-top flex flex-col gap-1.5 shadow-md">
+        {/* 2. TOP MOBILE HEADER (Anime Cute Pastel aesthetic with safe area) */}
+        <header className="absolute top-0 left-0 right-0 z-30 bg-[#FFFDF5]/95 backdrop-blur-md border-b-3 border-[#1e1b4b]/80 px-2.5 sm:px-3 py-1.5 safe-top flex flex-col gap-1.5 shadow-md">
           {/* Row 1: Player Name, Celestial Time Cycle, Sound & Menu */}
           <div className="flex items-center justify-between gap-1.5">
             {/* Player Name */}
