@@ -55,7 +55,7 @@ export const CAMERA_LIMITS = {
   FIXED_THETA: Math.PI / 4,
   FIXED_PHI: Math.PI / 3.2,
   MIN_RADIUS: 6.5,
-  PAN_SPEED: 0.015,
+  PAN_SPEED_BASE: 0.018,
 } as const;
 
 export const CAMERA_PRESETS: readonly CameraPresetConfig[] = [
@@ -145,8 +145,9 @@ export function rotateCamera(
 }
 
 /**
- * Translada (pan) o ponto focal da câmera no plano do solo de acordo com o arrasto do ponteiro/touch,
- * respeitando os limites da expansão atual do mapa.
+ * Translada (pan) o ponto focal da câmera em SCREEN SPACE no plano do solo (X e Z),
+ * garantindo que arrastar para direita, esquerda, cima ou baixo acompanhe a tela intuitivamente
+ * sem desvios diagonais e preservando target.y.
  */
 export function panCamera(
   target: THREE.Vector3,
@@ -156,27 +157,41 @@ export function panCamera(
   expansionLevel: number = 0
 ): void {
   lockCameraAngles(orbit);
-  const angle = CAMERA_LIMITS.FIXED_THETA;
-  const panSpeed = CAMERA_LIMITS.PAN_SPEED;
-  target.x -= (Math.cos(angle) * dx - Math.sin(angle) * dy) * panSpeed;
-  target.z -= (Math.sin(angle) * dx + Math.cos(angle) * dy) * panSpeed;
+  const theta = CAMERA_LIMITS.FIXED_THETA;
+
+  // Vetores de movimento no plano do solo correspondentes aos eixos da tela
+  const screenRightX = Math.cos(theta);
+  const screenRightZ = -Math.sin(theta);
+
+  const screenUpX = -Math.sin(theta);
+  const screenUpZ = -Math.cos(theta);
+
+  // Escala dinâmica de velocidade proporcional ao nível de zoom atual
+  const zoomScale = THREE.MathUtils.clamp(orbit.radius / 14, 0.65, 2.0);
+  const speed = CAMERA_LIMITS.PAN_SPEED_BASE * zoomScale;
+
+  // Aplica translação precisa em X e Z (preservando target.y)
+  target.x += (-screenRightX * dx + screenUpX * dy) * speed;
+  target.z += (-screenRightZ * dx + screenUpZ * dy) * speed;
+
   clampCameraTarget(target, expansionLevel);
 }
 
 /**
- * Ajusta o zoom através do scroll da roda do mouse com limites da expansão territorial.
+ * Ajusta o zoom através do scroll da roda do mouse com sensibilidade adaptativa ao raio atual.
  */
 export function zoomCamera(
   orbit: CameraOrbitState,
   deltaY: number,
   expansionLevel: number = 0
 ): void {
-  const config = getCameraExpansionConfig(expansionLevel);
-  orbit.radius = Math.max(
-    config.minRadius,
-    Math.min(config.maxRadius, orbit.radius + deltaY * 0.02)
+  const sensitivity = THREE.MathUtils.clamp(
+    orbit.radius * 0.0018,
+    0.012,
+    0.05
   );
-  lockCameraAngles(orbit);
+  orbit.radius += deltaY * sensitivity;
+  clampCameraZoom(orbit, expansionLevel);
 }
 
 /**

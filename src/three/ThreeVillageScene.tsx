@@ -1217,8 +1217,10 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
           }, 400);
         }
       }
-    } else if (e.touches.length === 2) {
+    } else if (e.touches.length >= 2) {
+      // Quando 2 ou mais dedos entram: cancela pan e long-press imediatamente
       isDraggingRef.current = false;
+      hasDraggedRef.current = true; // Impede que o gesto seja interpretado como clique
       if (longPressTimerRef.current) {
         clearTimeout(longPressTimerRef.current);
         longPressTimerRef.current = null;
@@ -1233,6 +1235,15 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   const handleTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
       const touch = e.touches[0];
+
+      // Se estava anteriormente fazendo pinch (touchStartDistRef não nulo), reseta o ponto inicial do pan
+      if (touchStartDistRef.current !== null) {
+        touchStartDistRef.current = null;
+        dragStartRef.current = { x: touch.clientX, y: touch.clientY };
+        isDraggingRef.current = true;
+        return;
+      }
+
       if (longPressStartPosRef.current && longPressTimerRef.current) {
         const dist = Math.hypot(
           touch.clientX - longPressStartPosRef.current.x,
@@ -1264,33 +1275,62 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
           updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
         }
       }
-    } else if (e.touches.length === 2 && touchStartDistRef.current !== null) {
+    } else if (e.touches.length >= 2) {
+      // 2 dedos: Cancela qualquer pan e long press ativo
+      isDraggingRef.current = false;
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+        longPressTargetFacilityIdRef.current = null;
+      }
+
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const currentDist = Math.hypot(dx, dy);
-      const pinchDelta = touchStartDistRef.current - currentDist;
-      touchStartDistRef.current = currentDist;
 
-      zoomCameraByDelta(
-        camAngleRef.current,
-        pinchDelta * 0.05,
-        mapExpansionLevelRef.current
-      );
-      refreshCameraDetailLevel();
-      if (cameraRef.current) {
-        updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
+      if (touchStartDistRef.current !== null) {
+        const pinchDelta = touchStartDistRef.current - currentDist;
+        touchStartDistRef.current = currentDist;
+
+        // Sensibilidade proporcional ao raio do zoom (zoom out suave e zoom in preciso)
+        const pinchScale = THREE.MathUtils.clamp(
+          camAngleRef.current.radius / 14,
+          0.7,
+          1.6
+        );
+
+        zoomCameraByDelta(
+          camAngleRef.current,
+          pinchDelta * 0.04 * pinchScale,
+          mapExpansionLevelRef.current
+        );
+        refreshCameraDetailLevel();
+        if (cameraRef.current) {
+          updateCameraPosition(cameraRef.current, camTargetRef.current, camAngleRef.current);
+        }
+      } else {
+        touchStartDistRef.current = currentDist;
       }
     }
   };
 
-  const handleTouchEnd = () => {
-    isDraggingRef.current = false;
-    touchStartDistRef.current = null;
+  const handleTouchEnd = (e: React.TouchEvent) => {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
     longPressTargetFacilityIdRef.current = null;
+
+    if (e.touches.length === 1) {
+      // Voltou de 2 dedos para 1 dedo: reinicializa dragStart com o dedo restante para evitar saltos
+      const touch = e.touches[0];
+      touchStartDistRef.current = null;
+      dragStartRef.current = { x: touch.clientX, y: touch.clientY };
+      isDraggingRef.current = true;
+    } else if (e.touches.length === 0) {
+      isDraggingRef.current = false;
+      touchStartDistRef.current = null;
+    }
   };
 
   // Click on 3D objects (Raycasting)
@@ -1450,6 +1490,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
       onWheel={handleWheel}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
