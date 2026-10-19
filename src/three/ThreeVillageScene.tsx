@@ -247,6 +247,9 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   );
   const mapExpansionLevelRef = useRef(mapExpansionLevel);
 
+  // WebGL context loss / error recovery state
+  const [hasWebGLError, setHasWebGLError] = useState(false);
+
   const [cameraDetailLevel, setCameraDetailLevel] =
     useState<CameraDetailLevel>(() =>
       getCameraDetailLevel(
@@ -430,13 +433,44 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     cameraRef.current = camera;
     updateCameraPosition(camera, camTargetRef.current, camAngleRef.current);
 
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    // Renderer (with WebGL context loss recovery and error handling)
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: false,
+        powerPreference: 'default',
+        failIfMajorPerformanceCaveat: false,
+      });
+    } catch (e) {
+      console.warn('WebGL context creation failed, retrying without antialias...', e);
+      try {
+        renderer = new THREE.WebGLRenderer({
+          antialias: false,
+          alpha: false,
+          powerPreference: 'low-power',
+        });
+      } catch (err2) {
+        console.error('Fatal WebGL error:', err2);
+        setHasWebGLError(true);
+        return;
+      }
+    }
+
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     rendererRef.current = renderer;
+
+    // Handle WebGL context lost event gracefully
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+      console.warn('WebGL context lost. Attempting recovery...');
+      setHasWebGLError(true);
+    };
+    renderer.domElement.addEventListener('webglcontextlost', handleContextLost, false);
+
     container.appendChild(renderer.domElement);
 
     // Lights
@@ -833,7 +867,9 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       window.removeEventListener('resize', handleResize);
       ro.disconnect();
       timer.dispose();
+      renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);
       renderer.dispose();
+      renderer.forceContextLoss();
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
@@ -1421,6 +1457,30 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       onClick={handleClick}
       onContextMenu={(e) => e.preventDefault()}
     >
+      {/* WebGL Error / Context Recovery Card */}
+      {hasWebGLError && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-sky-950/85 backdrop-blur-md">
+          <div className="bg-[#FAF3E7] border-3 border-[#33261D] rounded-3xl p-5 max-w-xs text-center shadow-2xl flex flex-col items-center gap-3">
+            <span className="text-3xl">🌿</span>
+            <h3 className="font-display font-black text-lg text-stone-900">
+              Recuperando Gráficos 3D
+            </h3>
+            <p className="text-xs text-stone-600 font-medium">
+              O navegador pausou a aceleração gráfica temporariamente. Toque abaixo para reconectar a vila 3D.
+            </p>
+            <button
+              onClick={() => {
+                setHasWebGLError(false);
+                window.location.reload();
+              }}
+              className="w-full py-2.5 px-4 bg-amber-400 hover:bg-amber-500 text-stone-950 font-black text-xs rounded-xl border-2 border-[#33261D] shadow-md transition-all active:scale-95 cursor-pointer"
+            >
+              Recarregar Cenário 3D
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 3D View Controls Toolbar (Organized and compact, positioned below top header) */}
       <div className="absolute top-[6.2rem] right-2 sm:right-3.5 z-20 flex items-center gap-1.5 pointer-events-auto">
         {/* Camera Preset Dropdown Menu */}
