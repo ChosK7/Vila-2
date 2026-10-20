@@ -54,12 +54,12 @@ export interface CameraExpansionConfig {
 export const CAMERA_LIMITS = {
   FIXED_THETA: Math.PI / 4,
   FIXED_PHI: Math.PI / 3.2,
-  MIN_RADIUS: 6.5,
+  MIN_RADIUS: 2.2, // Aumentado o zoom em 3x (permite aproximação super detalhada de 6.5 para 2.2)
   PAN_SPEED_BASE: 0.018,
 } as const;
 
 export const CAMERA_PRESETS: readonly CameraPresetConfig[] = [
-  { id: 'overview', label: 'Visão Geral', shortLabel: 'Geral', icon: '🎯' },
+  { id: 'overview', label: 'Vila Completa', shortLabel: 'Vila', icon: '🏛️' },
   { id: 'camp', label: 'Centro & Fogueira', shortLabel: 'Centro', icon: '🛖' },
   { id: 'fields', label: 'Campos de Trigo', shortLabel: 'Trigo', icon: '🌾' },
   { id: 'forest', label: 'Floresta de Madeira', shortLabel: 'Floresta', icon: '🪵' },

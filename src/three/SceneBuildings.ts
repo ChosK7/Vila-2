@@ -19,6 +19,7 @@ export interface SceneBuildingsContext {
   facilityGroups: Map<string, THREE.Group>;
   gameState: GameState;
   facilityPositions: Record<string, { x: number; z: number }>;
+  facilityRotations?: Record<string, number>;
   getTerrainHeight: (x: number, z: number) => number;
 }
 
@@ -58,7 +59,7 @@ export const BUILDING_FALLBACK_POSITIONS: Record<string, { x: number; z: number 
  * Synchronizes building meshes in the 3D scene according to game state, counts, levels, and facility positions.
  */
 export function syncSceneBuildings(context: SceneBuildingsContext): void {
-  const { buildingsGroup, facilityGroups, gameState, facilityPositions, getTerrainHeight } = context;
+  const { buildingsGroup, facilityGroups, gameState, facilityPositions, facilityRotations, getTerrainHeight } = context;
 
   // Clear existing building meshes
   while (buildingsGroup.children.length > 0) {
@@ -76,6 +77,7 @@ export function syncSceneBuildings(context: SceneBuildingsContext): void {
     const p = facilityPositions[id] || fallbackPos;
     const y = getTerrainHeight(p.x, p.z);
     mesh.position.set(p.x, y, p.z);
+    mesh.rotation.y = facilityRotations?.[id] || 0;
     mesh.name = `facility-${id}`;
     buildingsGroup.add(mesh);
     facilityGroups.set(id, mesh);

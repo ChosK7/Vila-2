@@ -148,7 +148,7 @@ export const INITIAL_BUILDINGS: Record<string, Building> = {
     id: 'village_hall',
     name: 'Sede da Vila',
     description:
-      'Casa comunal central da aldeia. Serve como centro administrativo e depósito geral de alimentos, madeira, pedra e argila nos primeiros níveis da vila.',
+      'Casa comunal central da aldeia. Serve como centro administrativo e depósito central de alimentos, madeira, pedra e argila nos primeiros níveis da vila.',
     category: 'production',
     cost: {},
     requiredEra: 1,
@@ -156,7 +156,7 @@ export const INITIAL_BUILDINGS: Record<string, Building> = {
     count: 1,
     maxCount: 1,
     benefitsDescription:
-      'Centro administrativo e depósito geral de recursos da vila.',
+      'Centro administrativo e depósito central de recursos da vila.',
     icon: 'village_hall',
     constructionTurnsTotal: 0,
     constructionTurnsLeft: 0,
@@ -276,8 +276,8 @@ export const INITIAL_BUILDINGS: Record<string, Building> = {
   },
   cooking_pit: {
     id: 'cooking_pit',
-    name: 'Cozinha & Refeitório Comunitário',
-    description: 'Espaço com caldeirão, fogueira protegida e bancos de madeira onde os aldeões se alimentam juntos, garantindo vitalidade e ânimo.',
+    name: 'Fazenda & Armazém de Alimentos',
+    description: 'Estrutura ancestral com silo de grãos, tulhas elevadas contra roedores e cozinha comunitária onde refeições coletivas garantem vitalidade.',
     category: 'production',
     cost: { wood: 20, stone: 25 },
     requiredEra: 2,
@@ -727,6 +727,14 @@ export const INITIAL_STATE: GameState = {
   villagers: INITIAL_VILLAGERS,
   buildings: INITIAL_BUILDINGS,
   technologies: INITIAL_TECHNOLOGIES,
+  farm: {
+    stage: 'growing',
+    health: 90,
+    watered: true,
+    tended: true,
+    fertilized: false,
+    growthProgress: 60,
+  },
   dailyProduced: {
     food: 0,
     wood: 0,

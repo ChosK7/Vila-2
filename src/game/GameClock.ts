@@ -11,11 +11,11 @@ import { processMealConsumption } from './ResourceSystem';
 import { updateVillagerWorkStatus } from './ScheduleSystem';
 import { audio } from '../utils/audio';
 
-export const REAL_DAY_DURATION_SECONDS = 900;
+export const REAL_DAY_DURATION_SECONDS = 300; // 5 minutos reais = 1 dia completo de 24 horas no jogo
 export const GAME_HOURS_PER_DAY = 24;
 export const TICK_MS = 200;
-export const GAME_HOURS_PER_SECOND = GAME_HOURS_PER_DAY / REAL_DAY_DURATION_SECONDS; // 24 / 900 = 0.0266666667
-export const STEP_HOURS_PER_TICK = GAME_HOURS_PER_SECOND * (TICK_MS / 1000); // 0.005333333333333333
+export const GAME_HOURS_PER_SECOND = GAME_HOURS_PER_DAY / REAL_DAY_DURATION_SECONDS; // 24 / 300 = 0.08 h/s
+export const STEP_HOURS_PER_TICK = GAME_HOURS_PER_SECOND * (TICK_MS / 1000); // 0.016 h/tick
 
 export const DAYS_PER_SEASON = 20;
 export const SEASONS_PER_YEAR = 4;

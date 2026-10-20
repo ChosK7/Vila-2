@@ -360,35 +360,269 @@ export function createTreeMesh(): THREE.Group {
   return group;
 }
 
+// Fazenda Viva e Diversificada inspirada na imagem (Couves, Trigo Verdejante, Cenouras e Pomar Frutífero)
 export function createWheatPatchMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'wheat_patch';
 
-  // Base cultivated soil bed
-  const soilGeo = new THREE.PlaneGeometry(3.5, 3.5);
-  const soilMat = new THREE.MeshStandardMaterial({ color: 0xa16207, roughness: 1.0 });
-  const soil = new THREE.Mesh(soilGeo, soilMat);
-  soil.rotation.x = -Math.PI / 2;
-  soil.position.y = 0.01;
-  soil.receiveShadow = true;
-  group.add(soil);
+  // Base Grass Foundation & Pathways
+  const lawnMat = new THREE.MeshStandardMaterial({ color: 0x72c244, roughness: 0.85 }); // Vibrant anime grass lawn
+  const soilBedMat = new THREE.MeshStandardMaterial({ color: 0x542b10, roughness: 0.95 }); // Rich dark cultivated soil
+  const cabbageLeafMat = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.65 }); // Lush cabbage green
+  const cabbageHeadMat = new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.5 }); // Light creamy cauliflower head
+  const carrotOrangeMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.6 }); // Juicy carrot crown
+  const carrotLeafMat = new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 0.7 }); // Feathery carrot top
+  const wheatGreenMat = new THREE.MeshStandardMaterial({ color: 0x65a30d, roughness: 0.6 }); // Vibrant cereal green
+  const wheatGoldMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.5 }); // Sun-kissed golden tip
+  const fruitRedMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.35, metalness: 0.1 }); // Glossy red pomegranates/apples
+  const orchardFoliageMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.75 }); // Dense orchard foliage
+  const orchardWoodMat = new THREE.MeshStandardMaterial({ color: 0x6b3f1f, roughness: 0.8 }); // Organic tree trunk wood
+  const flowerYellowMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, roughness: 0.5 }); // Bright yellow corn tassels
 
-  // Stalks of golden wheat
-  const stalkGeo = new THREE.CylinderGeometry(0.015, 0.02, 0.8, 4);
-  const wheatMat = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.7 });
-  const earGeo = new THREE.ConeGeometry(0.05, 0.25, 4);
+  // Base grass plot beneath farm
+  const baseLawn = new THREE.Mesh(new THREE.BoxGeometry(6.6, 0.08, 6.6), lawnMat);
+  baseLawn.position.y = 0.04;
+  baseLawn.receiveShadow = true;
+  group.add(baseLawn);
 
-  for (let x = -1.4; x <= 1.4; x += 0.45) {
-    for (let z = -1.4; z <= 1.4; z += 0.45) {
-      const stalk = new THREE.Mesh(stalkGeo, wheatMat);
-      stalk.position.set(x + (Math.random() - 0.5) * 0.1, 0.4, z + (Math.random() - 0.5) * 0.1);
-      stalk.rotation.z = (Math.random() - 0.5) * 0.15;
-      group.add(stalk);
+  // ==============================================================
+  // 1. CANTEIRO DE COUVES E REPOLHOS / COUVE-FLOR (Plot Superior-Esquerdo)
+  // ==============================================================
+  const cabbageBed = new THREE.Group();
+  cabbageBed.position.set(-1.6, 0.08, -1.6);
 
-      const ear = new THREE.Mesh(earGeo, wheatMat);
-      ear.position.set(stalk.position.x, 0.85, stalk.position.z);
-      group.add(ear);
+  // Raised dark furrow soil bed
+  const cabbageSoil = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.12, 2.3), soilBedMat);
+  cabbageSoil.position.y = 0.06;
+  cabbageSoil.receiveShadow = true;
+  cabbageSoil.castShadow = true;
+  cabbageBed.add(cabbageSoil);
+
+  // Furrows ridges
+  for (let rz = -0.75; rz <= 0.75; rz += 0.5) {
+    const furrow = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 2.5, 6), soilBedMat);
+    furrow.rotation.z = Math.PI / 2;
+    furrow.position.set(0, 0.13, rz);
+    cabbageBed.add(furrow);
+  }
+
+  // 4x3 Grid of leafy Cabbages with creamy centers
+  for (let cx = -0.95; cx <= 0.95; cx += 0.63) {
+    for (let cz = -0.75; cz <= 0.75; cz += 0.5) {
+      const cabbageHead = new THREE.Group();
+      cabbageHead.position.set(cx + (Math.sin(cx * 5 + cz) * 0.04), 0.15, cz);
+
+      // Creamy cauliflower / cabbage center core
+      const core = new THREE.Mesh(new THREE.DodecahedronGeometry(0.15), cabbageHeadMat);
+      core.position.y = 0.08;
+      core.castShadow = true;
+      cabbageHead.add(core);
+
+      // Curled outer green leaves surrounding the head
+      for (let l = 0; l < 5; l++) {
+        const leafAngle = (l / 5) * Math.PI * 2;
+        const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.13, 6, 6), cabbageLeafMat);
+        leaf.scale.set(1.1, 0.35, 0.75);
+        leaf.position.set(Math.cos(leafAngle) * 0.12, 0.05, Math.sin(leafAngle) * 0.12);
+        leaf.rotation.y = leafAngle;
+        leaf.rotation.z = 0.35;
+        leaf.castShadow = true;
+        cabbageHead.add(leaf);
+      }
+
+      cabbageBed.add(cabbageHead);
     }
+  }
+  group.add(cabbageBed);
+
+  // ==============================================================
+  // 2. CANTEIRO DE TRIGO E CEREAIS VERDEJANTES (Plot Central-Esquerdo)
+  // ==============================================================
+  const wheatBed = new THREE.Group();
+  wheatBed.position.set(-1.6, 0.08, 0.95);
+
+  const wheatSoil = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.12, 1.8), soilBedMat);
+  wheatSoil.position.y = 0.06;
+  wheatSoil.receiveShadow = true;
+  wheatSoil.castShadow = true;
+  wheatBed.add(wheatSoil);
+
+  // Raised furrow ridges
+  for (let wz = -0.55; wz <= 0.55; wz += 0.55) {
+    const ridge = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.14, 2.5, 6), soilBedMat);
+    ridge.rotation.z = Math.PI / 2;
+    ridge.position.set(0, 0.12, wz);
+    wheatBed.add(ridge);
+  }
+
+  // Rows of lush green wheat stalks with golden tips
+  const stalkGeo = new THREE.CylinderGeometry(0.018, 0.024, 0.85, 4);
+  const earGeo = new THREE.ConeGeometry(0.075, 0.35, 5);
+
+  for (let wx = -1.1; wx <= 1.1; wx += 0.32) {
+    for (let wz = -0.65; wz <= 0.65; wz += 0.32) {
+      const seed = Math.sin(wx * 11 + wz * 7);
+      const isGolden = seed > 0.3;
+      const currentMat = isGolden ? wheatGoldMat : wheatGreenMat;
+
+      const stalk = new THREE.Mesh(stalkGeo, wheatGreenMat);
+      stalk.position.set(wx, 0.48, wz);
+      stalk.rotation.z = seed * 0.1;
+      stalk.castShadow = true;
+      wheatBed.add(stalk);
+
+      const ear = new THREE.Mesh(earGeo, currentMat);
+      ear.position.set(wx, 0.92, wz);
+      ear.rotation.z = stalk.rotation.z;
+      ear.castShadow = true;
+      wheatBed.add(ear);
+
+      // Low leafy foliage tuft at stalk base
+      for (let b = 0; b < 3; b++) {
+        const blade = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.35, 3), wheatGreenMat);
+        blade.position.set(wx + (b - 1) * 0.05, 0.22, wz);
+        blade.rotation.z = (b - 1) * 0.25;
+        wheatBed.add(blade);
+      }
+    }
+  }
+  group.add(wheatBed);
+
+  // ==============================================================
+  // 3. CANTEIRO DE CENOURAS E RAÍZES (Plot Inferior-Centro / Frente)
+  // ==============================================================
+  const carrotBed = new THREE.Group();
+  carrotBed.position.set(0.65, 0.08, 1.35);
+
+  const carrotSoil = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.12, 2.5), soilBedMat);
+  carrotSoil.position.y = 0.06;
+  carrotSoil.receiveShadow = true;
+  carrotSoil.castShadow = true;
+  carrotBed.add(carrotSoil);
+
+  // Longitudinal soil ridges for carrots
+  for (let crx = -0.55; crx <= 0.55; crx += 0.55) {
+    const ridge = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 2.3, 6), soilBedMat);
+    ridge.position.set(crx, 0.12, 0);
+    carrotBed.add(ridge);
+  }
+
+  // Rows of orange carrot crowns with green leafy tops
+  const carrotCrownGeo = new THREE.CylinderGeometry(0.06, 0.03, 0.16, 6);
+  const carrotLeafGeo = new THREE.ConeGeometry(0.035, 0.26, 4);
+
+  for (let cx = -0.65; cx <= 0.65; cx += 0.28) {
+    for (let cz = -0.95; cz <= 0.95; cz += 0.28) {
+      const cGroup = new THREE.Group();
+      cGroup.position.set(cx + (Math.sin(cz * 7) * 0.03), 0.14, cz);
+
+      // Orange root crown emerging from soil
+      const crown = new THREE.Mesh(carrotCrownGeo, carrotOrangeMat);
+      crown.position.y = 0.06;
+      crown.castShadow = true;
+      cGroup.add(crown);
+
+      // Feathery carrot greens
+      for (let lf = 0; lf < 3; lf++) {
+        const leaf = new THREE.Mesh(carrotLeafGeo, carrotLeafMat);
+        leaf.position.set((lf - 1) * 0.03, 0.22, 0);
+        leaf.rotation.z = (lf - 1) * 0.3;
+        leaf.castShadow = true;
+        cGroup.add(leaf);
+      }
+
+      carrotBed.add(cGroup);
+    }
+  }
+  group.add(carrotBed);
+
+  // ==============================================================
+  // 4. POMAR FRUTÍFERO DE ÁRVORES CARREGADAS (Área Direita e Traseira)
+  // ==============================================================
+  const orchardGroup = new THREE.Group();
+  orchardGroup.position.set(1.4, 0, -1.1);
+
+  const createFruitTree = (tx: number, tz: number, scale: number = 1.0) => {
+    const tree = new THREE.Group();
+    tree.position.set(tx, 0, tz);
+    tree.scale.set(scale, scale, scale);
+
+    // Gnarled organic tree trunk
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, 1.4, 7), orchardWoodMat);
+    trunk.position.y = 0.7;
+    trunk.castShadow = true;
+    tree.add(trunk);
+
+    // Curved primary branches
+    for (let b = 0; b < 3; b++) {
+      const angle = (b / 3) * Math.PI * 2;
+      const branch = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 0.9, 5), orchardWoodMat);
+      branch.position.set(Math.cos(angle) * 0.35, 1.25, Math.sin(angle) * 0.35);
+      branch.rotation.z = -Math.cos(angle) * 0.6;
+      branch.rotation.x = Math.sin(angle) * 0.6;
+      branch.castShadow = true;
+      tree.add(branch);
+    }
+
+    // Lush Anime Green Leaf Canopies (clustered spheres)
+    const canopyCoords = [
+      { x: 0, y: 1.85, z: 0, r: 0.95 },
+      { x: 0.5, y: 1.95, z: 0.35, r: 0.75 },
+      { x: -0.45, y: 1.8, z: -0.4, r: 0.7 },
+      { x: 0.3, y: 1.6, z: -0.5, r: 0.65 },
+      { x: -0.4, y: 1.65, z: 0.45, r: 0.65 },
+    ];
+
+    canopyCoords.forEach((c) => {
+      const foliage = new THREE.Mesh(new THREE.DodecahedronGeometry(c.r), orchardFoliageMat);
+      foliage.position.set(c.x, c.y, c.z);
+      foliage.castShadow = true;
+      tree.add(foliage);
+    });
+
+    // Clusters of Bright Red Glossy Fruits (Pomegranates / Apples hanging from canopy)
+    const fruitCoords = [
+      { x: 0.45, y: 1.55, z: 0.45 },
+      { x: -0.4, y: 1.5, z: 0.5 },
+      { x: 0.65, y: 1.7, z: -0.2 },
+      { x: -0.55, y: 1.65, z: -0.35 },
+      { x: 0.1, y: 1.35, z: 0.7 },
+      { x: -0.2, y: 1.4, z: -0.65 },
+      { x: 0.55, y: 1.85, z: 0.2 },
+      { x: -0.35, y: 1.9, z: 0.3 },
+      { x: 0.0, y: 1.5, z: -0.6 },
+    ];
+
+    fruitCoords.forEach((fc) => {
+      const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), fruitRedMat);
+      fruit.position.set(fc.x, fc.y, fc.z);
+      fruit.castShadow = true;
+      tree.add(fruit);
+    });
+
+    return tree;
+  };
+
+  // 2 Fruit Orchard trees
+  orchardGroup.add(createFruitTree(0, 0, 1.1));
+  orchardGroup.add(createFruitTree(0.75, 1.1, 0.95));
+
+  group.add(orchardGroup);
+
+  // ==============================================================
+  // 5. FIADA DE FLORES E MILHO DOURADO (Borda Esquerda como na imagem)
+  // ==============================================================
+  for (let fz = -2.2; fz <= 2.2; fz += 0.55) {
+    const flowerStalk = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 1.1, 4), wheatGreenMat);
+    flowerStalk.position.set(-3.0, 0.55, fz);
+    flowerStalk.castShadow = true;
+    group.add(flowerStalk);
+
+    // Yellow floral petal / corn tassel head
+    const flower = new THREE.Mesh(new THREE.DodecahedronGeometry(0.12), flowerYellowMat);
+    flower.position.set(-3.0, 1.05, fz);
+    flower.castShadow = true;
+    group.add(flower);
   }
 
   return group;
@@ -708,67 +942,407 @@ export function createStoneworksMesh(): THREE.Group {
   return group;
 }
 
-// 10. Cozinha & Refeitório Comunitário (Cooking Pit / Refectory)
+// 10. Fazenda & Armazém de Alimentos Ancestral (Cooking Pit / Ancestral Food Storage Farm)
 export function createCookingPitMesh(): THREE.Group {
   const group = new THREE.Group();
   group.name = 'cooking_pit';
 
-  // Base circular de pedras secas
-  for (let i = 0; i < 8; i++) {
-    const angle = (i / 8) * Math.PI * 2;
-    const stoneGeo = new THREE.DodecahedronGeometry(0.16);
-    const stone = new THREE.Mesh(stoneGeo, darkStoneMat);
-    stone.position.set(Math.cos(angle) * 0.55, 0.1, Math.sin(angle) * 0.55);
-    stone.castShadow = true;
-    group.add(stone);
+  // Specific materials for detailed ancestral food storage & farming
+  const ceramicClayMat = new THREE.MeshStandardMaterial({ color: 0xc2410c, roughness: 0.7 });
+  const terracottaMat = new THREE.MeshStandardMaterial({ color: 0x9a3412, roughness: 0.75 });
+  const sackBurlapMat = new THREE.MeshStandardMaterial({ color: 0xd4a373, roughness: 0.88 });
+  const grainGoldMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.55 });
+  const brightGrainMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.45 });
+  const flourMat = new THREE.MeshStandardMaterial({ color: 0xfef9c3, roughness: 0.95 });
+  const emberMat = new THREE.MeshBasicMaterial({ color: 0xf97316 });
+  const potBronzeMat = new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.4, metalness: 0.5 });
+  const herbGreenMat = new THREE.MeshStandardMaterial({ color: 0x65a30d, roughness: 0.8 });
+  const wickerMat = new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.85 });
+
+  // 1. Raised Flagstone & Timber Foundation Platform
+  const floorGeo = new THREE.CylinderGeometry(2.6, 2.75, 0.14, 16);
+  const floor = new THREE.Mesh(floorGeo, darkStoneMat);
+  floor.position.y = 0.07;
+  floor.receiveShadow = true;
+  group.add(floor);
+
+  // Perimeter timber curb beam protecting food from damp ground
+  const curbGeo = new THREE.TorusGeometry(2.65, 0.05, 6, 20);
+  const curb = new THREE.Mesh(curbGeo, darkWoodMat);
+  curb.rotation.x = Math.PI / 2;
+  curb.position.y = 0.12;
+  curb.receiveShadow = true;
+  group.add(curb);
+
+  // Stone access steps on front
+  const step1 = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.07, 0.35), darkStoneMat);
+  step1.position.set(0, 0.035, 2.7);
+  group.add(step1);
+
+  // 2. Ancestral Granary / Food Storage Silo (Silo elevado de argila e adobe para grãos secos)
+  const siloGroup = new THREE.Group();
+  siloGroup.position.set(-1.15, 0, -0.65);
+
+  // 4 Staddle-stone style stilt posts with rodent barrier discs
+  const stiltCoords = [
+    [-0.55, -0.55],
+    [0.55, -0.55],
+    [-0.55, 0.55],
+    [0.55, 0.55],
+  ];
+  stiltCoords.forEach(([sx, sz]) => {
+    const stilt = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.55, 6), darkWoodMat);
+    stilt.position.set(sx, 0.275, sz);
+    stilt.castShadow = true;
+    siloGroup.add(stilt);
+
+    // Flat stone disc / collar preventing climbing rodents
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.04, 8), stoneMat);
+    disc.position.set(sx, 0.5, sz);
+    disc.castShadow = true;
+    siloGroup.add(disc);
+  });
+
+  // Elevated Silo floor platform
+  const siloFloor = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.08, 1.5), woodMat);
+  siloFloor.position.y = 0.54;
+  siloFloor.castShadow = true;
+  siloGroup.add(siloFloor);
+
+  // Cylindrical Adobe Silo Body
+  const siloBody = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.82, 1.4, 14), adobeMat);
+  siloBody.position.y = 1.25;
+  siloBody.castShadow = true;
+  siloBody.receiveShadow = true;
+  siloGroup.add(siloBody);
+
+  // Wooden reinforcing staves & hoops
+  [0.85, 1.35, 1.8].forEach((hy) => {
+    const hoop = new THREE.Mesh(new THREE.TorusGeometry(0.79, 0.025, 6, 16), darkWoodMat);
+    hoop.rotation.x = Math.PI / 2;
+    hoop.position.y = hy;
+    siloGroup.add(hoop);
+  });
+
+  // Conical Thatched Silo Roof with Finial
+  const siloRoof = new THREE.Mesh(new THREE.ConeGeometry(1.1, 0.85, 14), thatchMat);
+  siloRoof.position.y = 2.35;
+  siloRoof.castShadow = true;
+  siloGroup.add(siloRoof);
+
+  const finial = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.35, 6), darkWoodMat);
+  finial.position.y = 2.85;
+  siloGroup.add(finial);
+
+  // Grain Chute / Trapdoor on front
+  const chute = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.32, 0.12), darkWoodMat);
+  chute.position.set(0, 0.85, 0.8);
+  chute.rotation.x = 0.25;
+  siloGroup.add(chute);
+
+  // Grain sack beneath chute catching meal
+  const catchSack = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), sackBurlapMat);
+  catchSack.scale.set(1.1, 0.75, 1.1);
+  catchSack.position.set(0, 0.65, 0.95);
+  siloGroup.add(catchSack);
+
+  group.add(siloGroup);
+
+  // 3. Elevated Slatted Grain Crib (Tulha de Milho / Cevada para secagem ao ar)
+  const cribGroup = new THREE.Group();
+  cribGroup.position.set(1.2, 0, -0.75);
+
+  for (let i = -1; i <= 1; i += 2) {
+    for (let j = -1; j <= 1; j += 2) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.65, 6), darkWoodMat);
+      leg.position.set(i * 0.45, 0.325, j * 0.35);
+      leg.castShadow = true;
+      cribGroup.add(leg);
+    }
   }
 
-  // Tripé de madeira rústica sobre a fogueira
+  // Crib box with slatted sides
+  const cribBase = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.06, 0.9), woodMat);
+  cribBase.position.y = 0.65;
+  cribGroup.add(cribBase);
+
+  const cribWallF = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.45, 0.04), woodMat);
+  cribWallF.position.set(0, 0.88, 0.43);
+  cribGroup.add(cribWallF);
+
+  const cribWallB = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.45, 0.04), woodMat);
+  cribWallB.position.set(0, 0.88, -0.43);
+  cribGroup.add(cribWallB);
+
+  // Golden corn/wheat cobs piled inside crib
+  const cornPile = new THREE.Mesh(new THREE.SphereGeometry(0.35, 8, 6), grainGoldMat);
+  cornPile.scale.set(1.3, 0.6, 0.95);
+  cornPile.position.set(0, 0.9, 0);
+  cribGroup.add(cornPile);
+
+  // Slanted mini-roof over crib
+  const cribRoof = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.06, 1.05), thatchMat);
+  cribRoof.position.set(0, 1.25, 0);
+  cribRoof.rotation.x = 0.15;
+  cribRoof.castShadow = true;
+  cribGroup.add(cribRoof);
+
+  group.add(cribGroup);
+
+  // 4. Ancestral Cooking Hearth & Caldron (Fogueira protegida com caldeirão)
+  const hearthGroup = new THREE.Group();
+  hearthGroup.position.set(0.25, 0.07, 0.4);
+
+  // River stones ring
+  for (let i = 0; i < 10; i++) {
+    const angle = (i / 10) * Math.PI * 2;
+    const stoneGeo = new THREE.DodecahedronGeometry(0.12);
+    const stone = new THREE.Mesh(stoneGeo, darkStoneMat);
+    stone.position.set(Math.cos(angle) * 0.45, 0.08, Math.sin(angle) * 0.45);
+    stone.castShadow = true;
+    hearthGroup.add(stone);
+  }
+
+  // Cross charred firewood logs
+  for (let i = 0; i < 4; i++) {
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.55, 5), darkWoodMat);
+    log.rotation.x = Math.PI / 2;
+    log.rotation.z = (i / 4) * Math.PI + 0.2;
+    log.position.y = 0.06;
+    hearthGroup.add(log);
+  }
+
+  // Embers glow bed
+  const embers = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.04, 8), emberMat);
+  embers.position.y = 0.07;
+  hearthGroup.add(embers);
+
+  // Central flame
+  const flame = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.25, 6), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+  flame.position.y = 0.22;
+  hearthGroup.add(flame);
+
+  // Sturdy wood tripod over fire
   for (let i = 0; i < 3; i++) {
     const angle = (i / 3) * Math.PI * 2;
-    const legGeo = new THREE.CylinderGeometry(0.03, 0.04, 1.3, 6);
-    const leg = new THREE.Mesh(legGeo, darkWoodMat);
-    leg.position.set(Math.cos(angle) * 0.35, 0.6, Math.sin(angle) * 0.35);
-    leg.rotation.z = -Math.cos(angle) * 0.3;
-    leg.rotation.x = Math.sin(angle) * 0.3;
-    group.add(leg);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 1.3, 6), darkWoodMat);
+    leg.position.set(Math.cos(angle) * 0.34, 0.65, Math.sin(angle) * 0.34);
+    leg.rotation.z = -Math.cos(angle) * 0.28;
+    leg.rotation.x = Math.sin(angle) * 0.28;
+    leg.castShadow = true;
+    hearthGroup.add(leg);
   }
 
-  // Caldeirão de cozimento pendurado no tripé
-  const cauldronGeo = new THREE.SphereGeometry(0.25, 8, 8, 0, Math.PI * 2, 0, Math.PI * 0.8);
-  const cauldronMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.6 });
-  const cauldron = new THREE.Mesh(cauldronGeo, cauldronMat);
+  // Hanging chain & heavy cauldron
+  const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.35, 4), potBronzeMat);
+  chain.position.y = 1.05;
+  hearthGroup.add(chain);
+
+  const cauldron = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.8), potBronzeMat);
   cauldron.rotation.x = Math.PI;
-  cauldron.position.y = 0.65;
-  group.add(cauldron);
+  cauldron.position.y = 0.72;
+  cauldron.castShadow = true;
+  hearthGroup.add(cauldron);
 
-  // Chama suave sob o caldeirão
-  const flameGeo = new THREE.ConeGeometry(0.14, 0.28, 6);
-  const flameMat = new THREE.MeshBasicMaterial({ color: 0xf97316 });
-  const flame = new THREE.Mesh(flameGeo, flameMat);
-  flame.position.y = 0.18;
-  group.add(flame);
+  // Soup stew inside cauldron
+  const soup = new THREE.Mesh(new THREE.CircleGeometry(0.21, 10), new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.3 }));
+  soup.rotation.x = -Math.PI / 2;
+  soup.position.y = 0.78;
+  hearthGroup.add(soup);
 
-  // Bancos de madeira comunitários ao redor para o refeitório
-  for (let i = 0; i < 3; i++) {
-    const angle = (i / 3) * Math.PI * 2 + Math.PI / 6;
-    const benchGeo = new THREE.BoxGeometry(0.8, 0.18, 0.3);
-    const bench = new THREE.Mesh(benchGeo, woodMat);
-    bench.position.set(Math.cos(angle) * 1.25, 0.15, Math.sin(angle) * 1.25);
-    bench.rotation.y = -angle + Math.PI / 2;
-    group.add(bench);
+  group.add(hearthGroup);
+
+  // 5. Firewood Stack (Lenha cortada e empilhada)
+  const woodStackGroup = new THREE.Group();
+  woodStackGroup.position.set(-0.7, 0.07, 1.4);
+  for (let layer = 0; layer < 3; layer++) {
+    for (let c = 0; c < 3 - layer; c++) {
+      const log = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.6, 6), darkWoodMat);
+      log.rotation.z = Math.PI / 2;
+      log.position.set(c * 0.11 - 0.15, layer * 0.09 + 0.05, 0);
+      log.castShadow = true;
+      woodStackGroup.add(log);
+    }
+  }
+  group.add(woodStackGroup);
+
+  // 6. Ancestral Saddle Quern & Grain Mortar (Mó de pedra de moer trigo e pilão)
+  const millingGroup = new THREE.Group();
+  millingGroup.position.set(1.4, 0.07, 0.7);
+
+  // Lower stationary saddle stone
+  const saddleStone = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.16, 0.38), darkStoneMat);
+  saddleStone.position.y = 0.08;
+  saddleStone.castShadow = true;
+  millingGroup.add(saddleStone);
+
+  // Oblong grinding stone (mó móvel)
+  const handStone = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.28, 8), stoneMat);
+  handStone.rotation.z = Math.PI / 2;
+  handStone.position.set(0, 0.21, 0);
+  millingGroup.add(handStone);
+
+  // Flour dust on stone surface
+  const flourPatch = new THREE.Mesh(new THREE.CircleGeometry(0.18, 8), flourMat);
+  flourPatch.rotation.x = -Math.PI / 2;
+  flourPatch.position.set(0.12, 0.165, 0);
+  millingGroup.add(flourPatch);
+
+  // Wooden meal bowl beside the milling stone
+  const mealBowl = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.08, 0.1, 8), woodMat);
+  mealBowl.position.set(-0.35, 0.05, 0.1);
+  millingGroup.add(mealBowl);
+
+  const mealContent = new THREE.Mesh(new THREE.CircleGeometry(0.1, 8), flourMat);
+  mealContent.rotation.x = -Math.PI / 2;
+  mealContent.position.set(-0.35, 0.1, 0.1);
+  millingGroup.add(mealContent);
+
+  group.add(millingGroup);
+
+  // 7. Sun-Drying Grain Rack / Wicker Tray (Secador de grãos em esteira de vime)
+  const dryerGroup = new THREE.Group();
+  dryerGroup.position.set(0.65, 0.07, 1.55);
+
+  // 4 Legs
+  [[-0.3, -0.2], [0.3, -0.2], [-0.3, 0.2], [0.3, 0.2]].forEach(([dx, dz]) => {
+    const dLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.55, 5), darkWoodMat);
+    dLeg.position.set(dx, 0.275, dz);
+    dryerGroup.add(dLeg);
+  });
+
+  // Wicker Tray Frame
+  const trayFrame = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.04, 0.55), darkWoodMat);
+  trayFrame.position.y = 0.55;
+  dryerGroup.add(trayFrame);
+
+  // Sunning grains bed
+  const dryingGrains = new THREE.Mesh(new THREE.PlaneGeometry(0.68, 0.48), brightGrainMat);
+  dryingGrains.rotation.x = -Math.PI / 2;
+  dryingGrains.position.y = 0.575;
+  dryerGroup.add(dryingGrains);
+
+  group.add(dryerGroup);
+
+  // 8. Storage Vessels: Terracotta Amphoras & Burlap Sacks
+  const storageGroup = new THREE.Group();
+  storageGroup.position.set(-1.6, 0.07, 0.7);
+
+  // Large amphora 1
+  const amph1 = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.12, 0.6, 10), terracottaMat);
+  amph1.position.set(0, 0.3, 0);
+  amph1.castShadow = true;
+  storageGroup.add(amph1);
+
+  // Reed lid with cord
+  const lid1 = new THREE.Mesh(new THREE.ConeGeometry(0.19, 0.1, 8), wickerMat);
+  lid1.position.set(0, 0.63, 0);
+  storageGroup.add(lid1);
+
+  // Smaller amphora 2
+  const amph2 = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.09, 0.48, 10), ceramicClayMat);
+  amph2.position.set(0.28, 0.24, -0.2);
+  amph2.castShadow = true;
+  storageGroup.add(amph2);
+
+  // Stack of 3 Grain Sacks
+  const sack1 = new THREE.Mesh(new THREE.SphereGeometry(0.24, 8, 8), sackBurlapMat);
+  sack1.scale.set(1.2, 0.7, 0.9);
+  sack1.position.set(0.3, 0.17, 0.35);
+  sack1.castShadow = true;
+  storageGroup.add(sack1);
+
+  const sack2 = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), sackBurlapMat);
+  sack2.scale.set(1.1, 0.65, 0.9);
+  sack2.position.set(0.32, 0.45, 0.33);
+  sack2.castShadow = true;
+  storageGroup.add(sack2);
+
+  // Harvest Basket with roots
+  const basket = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.16, 0.3, 10), wickerMat);
+  basket.position.set(-0.25, 0.15, -0.35);
+  basket.castShadow = true;
+  storageGroup.add(basket);
+
+  // Produce roots inside basket
+  for (let i = 0; i < 4; i++) {
+    const root = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.2, 5), ceramicClayMat);
+    root.rotation.x = (i % 2 === 0 ? 0.4 : -0.3);
+    root.rotation.z = (i * 0.3 - 0.4);
+    root.position.set(-0.25 + (i - 1.5) * 0.06, 0.3, -0.35);
+    storageGroup.add(root);
   }
 
-  // Cobertura protetora rústica
-  const canopyPoleGeo = new THREE.CylinderGeometry(0.06, 0.06, 1.8, 6);
-  const canopyPole = new THREE.Mesh(canopyPoleGeo, darkWoodMat);
-  canopyPole.position.set(0, 0.9, -1.2);
-  group.add(canopyPole);
+  group.add(storageGroup);
 
-  const canopyGeo = new THREE.ConeGeometry(1.6, 0.45, 6);
-  const canopy = new THREE.Mesh(canopyGeo, thatchMat);
-  canopy.position.set(0, 1.8, 0);
-  group.add(canopy);
+  // 9. Grand Ancestral Thatched Shelter Pavilion (4 pilares robustos, vigas e teto protetor)
+  const canopyGroup = new THREE.Group();
+
+  const postPositions = [
+    [-1.75, -1.6],
+    [1.75, -1.6],
+    [-1.75, 1.6],
+    [1.75, 1.6],
+  ];
+
+  postPositions.forEach(([px, pz]) => {
+    // Stout pillar
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 2.1, 8), darkWoodMat);
+    post.position.set(px, 1.05, pz);
+    post.castShadow = true;
+    canopyGroup.add(post);
+
+    // Diagonal knee brace to support roof
+    const brace = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.65, 6), woodMat);
+    brace.position.set(px * 0.85, 1.85, pz * 0.85);
+    brace.rotation.z = px < 0 ? -0.7 : 0.7;
+    canopyGroup.add(brace);
+  });
+
+  // Perimeter top tie beams
+  const beamFront = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.09, 0.09), woodMat);
+  beamFront.position.set(0, 2.05, 1.6);
+  canopyGroup.add(beamFront);
+
+  const beamBack = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.09, 0.09), woodMat);
+  beamBack.position.set(0, 2.05, -1.6);
+  canopyGroup.add(beamBack);
+
+  const beamLeft = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 3.3), woodMat);
+  beamLeft.position.set(-1.75, 2.05, 0);
+  canopyGroup.add(beamLeft);
+
+  const beamRight = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 3.3), woodMat);
+  beamRight.position.set(1.75, 2.05, 0);
+  canopyGroup.add(beamRight);
+
+  // Overhead Hanging Provisions Rafter (Varal de cura no interior do telheiro)
+  const rafterBeam = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 2.4, 6), darkWoodMat);
+  rafterBeam.position.set(0, 1.95, 0.2);
+  canopyGroup.add(rafterBeam);
+
+  // Hanging garlic, herbs and cured bundles from rafter
+  for (let i = 0; i < 5; i++) {
+    const herbMat = i % 2 === 0 ? herbGreenMat : grainGoldMat;
+    const herb = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.24, 5), herbMat);
+    herb.rotation.x = Math.PI;
+    herb.position.set(-0.8 + i * 0.4, 1.78, 0.2);
+    canopyGroup.add(herb);
+  }
+
+  // Broad Overhanging Hip Thatched Roof
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(2.9, 0.95, 4), thatchMat);
+  roof.position.y = 2.45;
+  roof.rotation.y = Math.PI / 4;
+  roof.castShadow = true;
+  canopyGroup.add(roof);
+
+  // Ridge cap of woven thatch
+  const ridgeCap = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.15, 0.25), thatchMat);
+  ridgeCap.position.y = 2.92;
+  canopyGroup.add(ridgeCap);
+
+  group.add(canopyGroup);
 
   return group;
 }

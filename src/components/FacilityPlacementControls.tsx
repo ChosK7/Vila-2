@@ -39,6 +39,7 @@ export interface FacilityPlacementControlsProps {
   onCloseMoveMode: () => void;
   selectedFacilityId: string | null;
   onSelectFacility: (id: string) => void;
+  onRotateFacility?: (id: string) => void;
   availableFacilities: AvailableFacilityItem[];
   facilityPositions: Record<string, { x: number; z: number }>;
   facilityConfigs: Record<string, FacilityConfig>;
@@ -51,6 +52,7 @@ export const FacilityPlacementControls: React.FC<FacilityPlacementControlsProps>
   onCloseMoveMode,
   selectedFacilityId,
   onSelectFacility,
+  onRotateFacility,
   availableFacilities,
   facilityPositions,
   facilityConfigs,
@@ -84,6 +86,22 @@ export const FacilityPlacementControls: React.FC<FacilityPlacementControlsProps>
             </div>
 
             <div className="flex items-center gap-1.5 ml-auto">
+              {selectedFacilityId && (
+                <button
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRotateFacility?.(selectedFacilityId);
+                  }}
+                  className="px-2.5 py-1 text-[11px] font-black rounded-lg border-2 border-[#33261D] bg-[#FFFBF5] hover:bg-[#EFE4CE] text-stone-900 transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
+                  title="Girar instalação selecionada em 90 graus"
+                >
+                  <span className="text-xs">⟳</span>
+                  <span>Girar 90°</span>
+                </button>
+              )}
               <button
                 onPointerDown={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}

@@ -142,8 +142,38 @@ export function advanceSimulationDay(
     eventNote: combinedNote || undefined,
   };
 
+  // 9. Atualiza progresso natural e plantio automático da fazenda
+  let updatedFarm = prevState.farm;
+  const hasFarmBuilding = (updatedBuildings.cooking_pit?.count || 0) > 0;
+  if (!updatedFarm && hasFarmBuilding) {
+    updatedFarm = {
+      stage: 'growing',
+      health: 100,
+      watered: true,
+      tended: true,
+      fertilized: true,
+      growthProgress: 35,
+    };
+  } else if (updatedFarm) {
+    if (updatedFarm.stage === 'growing') {
+      const newProgress = Math.min(100, (updatedFarm.growthProgress || 0) + 25);
+      updatedFarm = {
+        ...updatedFarm,
+        growthProgress: newProgress,
+        stage: newProgress >= 100 ? 'ready' : 'growing',
+      };
+    } else if (updatedFarm.stage === 'seeded') {
+      updatedFarm = {
+        ...updatedFarm,
+        growthProgress: 30,
+        stage: 'growing',
+      };
+    }
+  }
+
   const nextState: GameState = {
     ...prevState,
+    farm: updatedFarm,
     gameHour: remainingHour,
     turn: nextTurn,
     year: nextYear,

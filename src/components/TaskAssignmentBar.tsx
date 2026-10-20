@@ -356,7 +356,7 @@ export const TaskAssignmentBar: React.FC<TaskAssignmentBarProps> = ({
                           Todos os bônus de nível desbloqueados.
                         </p>
                         <div className="mt-2 text-[11px] font-semibold text-emerald-800 space-y-0.5 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
-                          <div>✨ +20% produção geral</div>
+                          <div>✨ +20% produção total</div>
                           <div>📜 +20% geração de conhecimento</div>
                           <div>👥 +10 capacidade populacional</div>
                           <div>📦 +20% capacidade de armazenamento</div>

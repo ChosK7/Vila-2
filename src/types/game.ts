@@ -156,6 +156,18 @@ export interface TurnReport {
   eventNote?: string;
 }
 
+export type CropStage = 'seeded' | 'growing' | 'ready';
+
+export interface FarmState {
+  stage: CropStage;
+  health: number; // 0 to 100
+  watered: boolean;
+  tended: boolean;
+  fertilized: boolean;
+  growthProgress: number; // 0 to 100
+  lastHarvestYield?: number;
+}
+
 export interface GameState {
   playerName?: string;
   autoAssignIdle?: boolean;
@@ -187,6 +199,7 @@ export interface GameState {
   villagers: Villager[];
   buildings: Record<string, Building>;
   technologies: Record<string, Technology>;
+  farm?: FarmState;
   dailyProduced?: {
     food: number;
     wood: number;

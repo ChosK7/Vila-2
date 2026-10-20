@@ -29,6 +29,7 @@ export interface AvailableFacilityItem {
 }
 
 export const FACILITY_STORAGE_KEY = 'vila_ancestral_facility_positions_v1';
+export const FACILITY_ROTATION_STORAGE_KEY = 'vila_ancestral_facility_rotations_v1';
 
 export const DEFAULT_FACILITY_CONFIGS: Record<string, FacilityConfig> = {
   village_hall: {
@@ -37,7 +38,7 @@ export const DEFAULT_FACILITY_CONFIGS: Record<string, FacilityConfig> = {
     defaultX: 0,
     defaultZ: 2.2,
     description:
-      'Centro administrativo e depósito geral da vila nos primeiros níveis.',
+      'Centro administrativo e depósito central da vila nos primeiros níveis.',
   },
   campfire: { name: 'Fogueira Central & Refeições', icon: '🔥', defaultX: 0, defaultZ: -0.8, description: 'Ponto de encontro onde os aldeões tomam café da manhã, almoçam, jantam e descansam.' },
   wheat: { name: 'Campos de Trigo (Agricultor)', icon: '🌾', defaultX: -6.5, defaultZ: 4.0, description: 'Plantações douradas de trigo ceifadas pelos agricultores.' },
@@ -53,7 +54,7 @@ export const DEFAULT_FACILITY_CONFIGS: Record<string, FacilityConfig> = {
   shelter_4: { name: 'Cabana 4', icon: '🛖', defaultX: 2.8, defaultZ: 2.0, description: 'Quarta moradia da aldeia (2 vagas base, +2 por nível).' },
   granary: { name: 'Celeiro de Grãos', icon: '🌾', defaultX: 0, defaultZ: 4.0, description: 'Estrutura elevada sobre estacas para estocagem de comida.' },
   village_well: { name: 'Poço Comunitário', icon: '💧', defaultX: 0, defaultZ: -3.8, description: 'Poço de pedra que fornece água potável e irriga os campos.' },
-  cooking_pit: { name: 'Cozinha & Refeitório Comunitário', icon: '🍲', defaultX: -1.2, defaultZ: 1.5, description: 'Refeitório onde refeições coletivas garantem vitalidade e ânimo.' },
+  cooking_pit: { name: 'Fazenda & Armazém de Alimentos', icon: '🌾', defaultX: -1.2, defaultZ: 1.5, description: 'Estrutura ancestral de armazenamento e preparo de alimentos com silos de grãos, defumador e cozinha comunitária.' },
   sawmill: { name: 'Serraria de Troncos', icon: '🪓', defaultX: -3.8, defaultZ: -4.5, description: 'Serraria artesanal para corte e armazenamento de madeira.' },
   stoneworks: { name: 'Oficina de Cantaria', icon: '🔨', defaultX: 4.2, defaultZ: -3.5, description: 'Oficina onde blocos de pedra são talhados e preparados.' },
   pottery_kiln: { name: 'Olaria & Forno de Argila', icon: '🏺', defaultX: 4.8, defaultZ: 2.5, description: 'Forno e estaleiro de secagem e queima de cerâmica de argila.' },

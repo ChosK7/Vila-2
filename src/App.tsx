@@ -10,6 +10,7 @@ import { EventModal } from './components/EventModal';
 import { HelpModal } from './components/HelpModal';
 import { VictoryModal } from './components/VictoryModal';
 import { Level10CompletionModal } from './components/Level10CompletionModal';
+import { IntroModal } from './components/IntroModal';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { audio } from './utils/audio';
 import { useGameClock, toggleTimePause } from './game/GameClock';
@@ -51,6 +52,7 @@ import {
   generateMissionSet,
   refreshMissions,
 } from './game/MissionSystem';
+import { plantCrops, tendCrops, harvestCrops } from './game/FarmCropsSystem';
 import {
   Compass,
   Edit2,
@@ -150,6 +152,27 @@ export default function App() {
   const [selectedVillagerId, setSelectedVillagerId] = useState<string | null>(null);
   const [territoryToast, setTerritoryToast] = useState<string | null>(null);
 
+  // Intro on First Launch (início para a primeira vez que o jogo for aberto)
+  const [isIntroOpen, setIsIntroOpen] = useState(() => {
+    try {
+      const hasSeen = localStorage.getItem('vila_ancestral_intro_seen');
+      return !hasSeen;
+    } catch (e) {
+      return false;
+    }
+  });
+
+  const handleStartGameFromIntro = (chosenName: string) => {
+    try {
+      localStorage.setItem('vila_ancestral_intro_seen', 'true');
+    } catch (e) {}
+    setGameState((prev) => ({
+      ...prev,
+      playerName: chosenName,
+    }));
+    setIsIntroOpen(false);
+  };
+
   // Expansão Territorial: cálculo de elegibilidade para o próximo nível
   const nextTerritoryLevel = (gameState.mapExpansionLevel ?? 0) + 1;
   const canExpandTerritory = canUnlockTerritoryExpansion(gameState, nextTerritoryLevel);
@@ -185,10 +208,29 @@ export default function App() {
     }
   }, [gameState]);
 
-  // Synchronize audio manager
+  // Synchronize audio manager & dynamic ambient soundscape (manhã, tarde, noite)
   useEffect(() => {
     audio.setEnabled(gameState.soundEnabled);
-  }, [gameState.soundEnabled]);
+    if (gameState.soundEnabled) {
+      audio.setAmbientHour(gameState.gameHour ?? 8.0);
+    }
+  }, [gameState.soundEnabled, gameState.gameHour]);
+
+  // Unlock Web Audio API & start ambient audio on first player gesture
+  useEffect(() => {
+    const handleFirstGesture = () => {
+      audio.unlockAudio();
+      if (gameState.soundEnabled) {
+        audio.setAmbientHour(gameState.gameHour ?? 8.0);
+      }
+    };
+    window.addEventListener('pointerdown', handleFirstGesture, { once: true });
+    window.addEventListener('keydown', handleFirstGesture, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', handleFirstGesture);
+      window.removeEventListener('keydown', handleFirstGesture);
+    };
+  }, [gameState.soundEnabled, gameState.gameHour]);
 
   // Production rates calculation via ResourceSystem
   const rates = useMemo(() => calculateProductionRates(gameState), [gameState]);
@@ -372,24 +414,54 @@ export default function App() {
         buildingId
       );
       if (!success) return prev;
+
+      let farmUpdate = prev.farm;
+      if (buildingId === 'cooking_pit') {
+        farmUpdate = {
+          stage: 'growing',
+          health: 100,
+          watered: true,
+          tended: true,
+          fertilized: true,
+          growthProgress: 35,
+        };
+        setTerritoryToast('🌱 Fazenda construída! Plantações semeadas automaticamente.');
+      }
+
       return refreshMissions({
         ...prev,
         resources: updatedResources,
         buildings: updatedBuildings,
+        farm: farmUpdate,
       });
     });
   };
 
-  // Upgrade building level (ex: Cabana +2 vagas por nível)
+  // Upgrade building level (ex: Cabana +2 vagas por nível, Fazenda +vigor automático)
   const handleUpgradeBuilding = (buildingId: string) => {
     setGameState((prev) => {
       const result = upgradeBuildingLevel(prev.buildings, prev.resources, buildingId);
       if (!result.success) return prev;
       audio.playBuild();
+
+      let farmUpdate = prev.farm;
+      if (buildingId === 'cooking_pit') {
+        farmUpdate = {
+          stage: 'growing',
+          health: 100,
+          watered: true,
+          tended: true,
+          fertilized: true,
+          growthProgress: 50,
+        };
+        setTerritoryToast('🌾 Fazenda evoluída! Plantações enriquecidas e plantio automático realizado.');
+      }
+
       return refreshMissions({
         ...prev,
         resources: result.updatedResources,
         buildings: result.updatedBuildings,
+        farm: farmUpdate,
       });
     });
   };
@@ -506,6 +578,53 @@ export default function App() {
     setIsEditingName(false);
   };
 
+  // Funções Agrícolas: Plantar, Cuidar da Plantação e Colheita
+  const handlePlantCrops = () => {
+    const res = plantCrops(gameState);
+    if (res.success) {
+      audio.playWood();
+      setTerritoryToast(res.message);
+      setGameState(res.newState);
+    } else {
+      audio.playAlert();
+      setTerritoryToast(res.message);
+    }
+  };
+
+  const handleTendCrops = () => {
+    const res = tendCrops(gameState);
+    if (res.success) {
+      audio.playWood();
+      setTerritoryToast(res.message);
+      setGameState(res.newState);
+    } else {
+      audio.playAlert();
+      setTerritoryToast(res.message);
+    }
+  };
+
+  const handleHarvestCrops = () => {
+    const res = harvestCrops(gameState);
+    if (res.success) {
+      audio.playFanfare();
+      setTerritoryToast(res.message);
+      setGameState((prev) => {
+        const next = res.newState;
+        const prevProd = prev.dailyProduced || { food: 0, wood: 0, stone: 0, clay: 0 };
+        return refreshMissions({
+          ...next,
+          dailyProduced: {
+            ...prevProd,
+            food: prevProd.food + (res.rewardFood || 0),
+          },
+        });
+      });
+    } else {
+      audio.playAlert();
+      setTerritoryToast(res.message);
+    }
+  };
+
   const idleCount = gameState.villagers.filter((v) => v.job === 'idle').length;
   const assignedCount = gameState.villagers.length - idleCount;
 
@@ -521,6 +640,9 @@ export default function App() {
           onVillagerGathers={handleVillagerGathers}
           onUpdateVillagerSchedule={handleUpdateVillagerSchedule}
           onDemolishBuilding={handleDemolishBuilding}
+          onPlantCrops={handlePlantCrops}
+          onTendCrops={handleTendCrops}
+          onHarvestCrops={handleHarvestCrops}
         />
 
         {/* 2. TOP MOBILE HEADER (Anime Cute Pastel aesthetic with safe area) */}
@@ -667,6 +789,13 @@ export default function App() {
       />
 
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+
+      {/* First Launch Intro Modal */}
+      <IntroModal
+        isOpen={isIntroOpen}
+        onStartGame={handleStartGameFromIntro}
+        defaultName={gameState.playerName || 'Líder Tribal'}
+      />
 
       {/* Level 10 Test Completion Modal */}
       <Level10CompletionModal

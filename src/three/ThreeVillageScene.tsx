@@ -59,6 +59,7 @@ import {
 import {
   DEFAULT_FACILITY_CONFIGS,
   FACILITY_STORAGE_KEY,
+  FACILITY_ROTATION_STORAGE_KEY,
   getDefaultFacilityPositions,
   clampFacilityPosition,
   findFacilityFromRaycast,
@@ -97,6 +98,9 @@ interface ThreeVillageSceneProps {
   onVillagerGathers?: (resource: 'food' | 'wood' | 'stone' | 'clay', amount: number) => void;
   onUpdateVillagerSchedule?: (villagerId: string, workStart: number, workEnd: number) => void;
   onDemolishBuilding?: (buildingId: string) => void;
+  onPlantCrops?: () => void;
+  onTendCrops?: () => void;
+  onHarvestCrops?: () => void;
 }
 
 export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
@@ -106,6 +110,9 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
   onVillagerGathers,
   onUpdateVillagerSchedule,
   onDemolishBuilding,
+  onPlantCrops,
+  onTendCrops,
+  onHarvestCrops,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
 
@@ -125,6 +132,39 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       localStorage.setItem(FACILITY_STORAGE_KEY, JSON.stringify(facilityPositions));
     } catch (e) {}
   }, [facilityPositions]);
+
+  // Facility Rotations State & Storage (Opção de girar construções em 90°)
+  const [facilityRotations, setFacilityRotations] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem(FACILITY_ROTATION_STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {};
+  });
+
+  const facilityRotationsRef = useRef(facilityRotations);
+  useEffect(() => {
+    facilityRotationsRef.current = facilityRotations;
+    try {
+      localStorage.setItem(FACILITY_ROTATION_STORAGE_KEY, JSON.stringify(facilityRotations));
+    } catch (e) {}
+  }, [facilityRotations]);
+
+  const handleRotateFacility = (id: string) => {
+    audio.playWood();
+    setFacilityRotations((prev) => {
+      const current = prev[id] || 0;
+      const next = (current + Math.PI / 2) % (Math.PI * 2);
+      const updated = { ...prev, [id]: next };
+      const grp = facilityGroupsRef.current.get(id);
+      if (grp) {
+        grp.rotation.y = next;
+      }
+      return updated;
+    });
+    const cfg = DEFAULT_FACILITY_CONFIGS[id];
+    setMoveToast(`⟳ ${cfg?.name || id} girado em 90°!`);
+  };
 
   // Move Facility Mode & Direct Building Selection states
   const [isMoveMode, setIsMoveMode] = useState(false);
@@ -659,14 +699,12 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     scene.add(path2);
 
     // Permanent Nature Nodes / Facilities
-    // 1. Wheat Patches (Agricultural Farm area)
+    // 1. Wheat Farm (Upgraded Agricultural Farm area with anime scarecrow, furrows and fences)
     const wheatPos = facilityPositionsRef.current['wheat'] || { x: -6.5, z: 4.0 };
     const wheatGroup = new THREE.Group();
     wheatGroup.position.set(wheatPos.x, getTerrainHeight(wheatPos.x, wheatPos.z), wheatPos.z);
+    wheatGroup.rotation.y = facilityRotationsRef.current['wheat'] || 0;
     wheatGroup.add(createWheatPatchMesh());
-    const wheatPatch2 = createWheatPatchMesh();
-    wheatPatch2.position.set(2.5, 0, -1.0);
-    wheatGroup.add(wheatPatch2);
     wheatGroup.name = 'facility-wheat';
     scene.add(wheatGroup);
     facilityGroupsRef.current.set('wheat', wheatGroup);
@@ -675,6 +713,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     const woodPos = facilityPositionsRef.current['wood'] || { x: -6.0, z: -5.5 };
     const forestGroup = new THREE.Group();
     forestGroup.position.set(woodPos.x, getTerrainHeight(woodPos.x, woodPos.z), woodPos.z);
+    forestGroup.rotation.y = facilityRotationsRef.current['wood'] || 0;
     forestGroup.add(createTreeMesh());
     const tree2 = createTreeMesh();
     tree2.position.set(1.6, 0, 1.2);
@@ -693,6 +732,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     const stonePos = facilityPositionsRef.current['stone'] || { x: 6.5, z: -4.5 };
     const quarryGroup = new THREE.Group();
     quarryGroup.position.set(stonePos.x, getTerrainHeight(stonePos.x, stonePos.z), stonePos.z);
+    quarryGroup.rotation.y = facilityRotationsRef.current['stone'] || 0;
     quarryGroup.add(createRockQuarryMesh());
     quarryGroup.name = 'facility-stone';
     scene.add(quarryGroup);
@@ -702,6 +742,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     const campPos = facilityPositionsRef.current['campfire'] || { x: 0, z: -0.8 };
     const campfire = createCampfireMesh();
     campfire.position.set(campPos.x, getTerrainHeight(campPos.x, campPos.z), campPos.z);
+    campfire.rotation.y = facilityRotationsRef.current['campfire'] || 0;
     campfire.name = 'facility-campfire';
     campfireGroupRef.current = campfire;
     scene.add(campfire);
@@ -711,6 +752,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     const clayPos = facilityPositionsRef.current['clay'] || { x: 7.0, z: 3.5 };
     const clayGroup = createClayPitMesh();
     clayGroup.position.set(clayPos.x, getTerrainHeight(clayPos.x, clayPos.z), clayPos.z);
+    clayGroup.rotation.y = facilityRotationsRef.current['clay'] || 0;
     clayGroup.name = 'facility-clay';
     scene.add(clayGroup);
     facilityGroupsRef.current.set('clay', clayGroup);
@@ -719,6 +761,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     const builderPos = facilityPositionsRef.current['buildersite'] || { x: 3.0, z: 0 };
     const builderGroup = createBuilderSiteMesh();
     builderGroup.position.set(builderPos.x, getTerrainHeight(builderPos.x, builderPos.z), builderPos.z);
+    builderGroup.rotation.y = facilityRotationsRef.current['buildersite'] || 0;
     builderGroup.name = 'facility-buildersite';
     scene.add(builderGroup);
     facilityGroupsRef.current.set('buildersite', builderGroup);
@@ -727,6 +770,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     const elderPos = facilityPositionsRef.current['elderDesk'] || { x: -2.2, z: -2.8 };
     const elderGroup = createElderDeskMesh();
     elderGroup.position.set(elderPos.x, getTerrainHeight(elderPos.x, elderPos.z), elderPos.z);
+    elderGroup.rotation.y = facilityRotationsRef.current['elderDesk'] || 0;
     elderGroup.name = 'facility-elderDesk';
     scene.add(elderGroup);
     facilityGroupsRef.current.set('elderDesk', elderGroup);
@@ -735,6 +779,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     const guardPos = facilityPositionsRef.current['guardPost'] || { x: 5.5, z: 5.0 };
     const guardPost1 = createGuardPostMesh();
     guardPost1.position.set(guardPos.x, getTerrainHeight(guardPos.x, guardPos.z), guardPos.z);
+    guardPost1.rotation.y = facilityRotationsRef.current['guardPost'] || 0;
     guardPost1.name = 'facility-guardPost';
     scene.add(guardPost1);
     facilityGroupsRef.current.set('guardPost', guardPost1);
@@ -876,7 +921,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
     };
   }, []);
 
-  // 2. Synchronize Buildings in 3D Scene
+  // 2. Synchronize Buildings in 3D Scene (including 90° rotations)
   useEffect(() => {
     if (!buildingsGroupRef.current) return;
     syncSceneBuildings({
@@ -884,9 +929,16 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       facilityGroups: facilityGroupsRef.current,
       gameState,
       facilityPositions,
+      facilityRotations,
       getTerrainHeight,
     });
-  }, [gameState.buildings, gameState.zigguratStagesCompleted, facilityPositions]);
+    // Also apply rotation to non-constructed facilities (wheat, wood, stone, campfire, etc.)
+    facilityGroupsRef.current.forEach((grp, id) => {
+      if (facilityRotations[id] !== undefined) {
+        grp.rotation.y = facilityRotations[id];
+      }
+    });
+  }, [gameState.buildings, gameState.zigguratStagesCompleted, facilityPositions, facilityRotations]);
 
   // 2.1 Visually clear undergrowth vegetation beneath all active buildings and facilities
   useEffect(() => {
@@ -1418,11 +1470,11 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
       }
     }
 
-    // 2. Direct click on buildings or village facilities (NÃO abrir painel para resource nodes)
+    // 2. Direct click on buildings or village facilities
     const clickedFacilityId = findFacilityFromRaycast(raycaster, facilityGroupsRef.current);
     if (clickedFacilityId) {
-      const isResourceNode = [
-        'wheat',
+      // O trigo agora abre o painel agrícola com Plantar, Cuidar e Colheita se nenhum aldeão estiver selecionado
+      const isPlainGatherNode = [
         'wood',
         'stone',
         'clay',
@@ -1432,7 +1484,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
         'guardPost',
       ].includes(clickedFacilityId);
 
-      if (!isResourceNode) {
+      if (!isPlainGatherNode) {
         audio.playWood();
         onSelectVillager(null);
         setSelectedBuildingId(clickedFacilityId);
@@ -1522,56 +1574,9 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
         </div>
       )}
 
-      {/* 3D View Controls Toolbar (Organized and compact, positioned below top header) */}
-      <div className="absolute top-[6.2rem] right-2 sm:right-3.5 z-20 flex items-center gap-1.5 pointer-events-auto">
-        {/* Camera Preset Dropdown Menu */}
-        <div className="relative">
-          <button
-            onClick={() => {
-              audio.playWood();
-              setIsCameraMenuOpen(!isCameraMenuOpen);
-            }}
-            className="px-2.5 py-1 text-xs font-bold rounded-xl border-2 border-[#33261D] bg-[#FDFBF7]/95 backdrop-blur-xs hover:bg-[#EFE4CE] text-stone-800 shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
-            title="Selecionar ponto de vista da câmera 3D"
-          >
-            <span>🎥</span>
-            <span className="text-[11px] font-bold">
-              {CAMERA_PRESETS.find((p) => p.id === activeCameraPreset)?.shortLabel || 'Visão'}
-            </span>
-            <ChevronDown
-              size={12}
-              className={`transition-transform duration-200 ${isCameraMenuOpen ? 'rotate-180' : ''}`}
-            />
-          </button>
-
-          {/* Dropdown Menu */}
-          {isCameraMenuOpen && (
-            <div className="absolute top-full right-0 mt-1.5 w-48 bg-[#FDFBF7] border-2 border-[#33261D] rounded-xl p-1 shadow-xl flex flex-col gap-0.5 z-30 animate-in fade-in slide-in-from-top-1">
-              {CAMERA_PRESETS.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => {
-                    audio.playWood();
-                    setActiveCameraPreset(p.id);
-                    resetCamera(p.id);
-                    setIsCameraMenuOpen(false);
-                  }}
-                  className={`w-full px-2 py-1.5 text-xs font-bold rounded-lg flex items-center gap-2 transition-colors text-left cursor-pointer ${
-                    activeCameraPreset === p.id
-                      ? 'bg-amber-100 text-amber-950 font-black'
-                      : 'text-stone-800 hover:bg-[#EFE4CE]'
-                  }`}
-                >
-                  <span className="text-sm">{p.icon}</span>
-                  <span>{p.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Follow Villager button */}
-        {selectedVillagerId && (
+      {/* Follow Villager button (exibido apenas quando um aldeão estiver inspecionado) */}
+      {selectedVillagerId && (
+        <div className="absolute top-[6.2rem] right-2 sm:right-3.5 z-20 pointer-events-auto">
           <button
             onClick={() => setFollowVillager(!followVillager)}
             className={`px-2.5 py-1 text-xs font-bold rounded-xl border-2 border-[#33261D] flex items-center gap-1 shadow-md transition-all cursor-pointer ${
@@ -1584,8 +1589,8 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
             <Eye size={13} />
             <span className="hidden sm:inline">Seguir</span>
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Move Facility Floating Toolbar & Toast */}
       <FacilityPlacementControls
@@ -1596,6 +1601,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
           setSelectedFacilityId(id);
           audio.playWood();
         }}
+        onRotateFacility={handleRotateFacility}
         availableFacilities={availableFacilities}
         facilityPositions={facilityPositions}
         facilityConfigs={DEFAULT_FACILITY_CONFIGS}
@@ -1667,6 +1673,9 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
             facilityDescription={cfg.description}
             canDemolish={canDemolish}
             demolishReason={demolishReason}
+            farmState={gameState.farm}
+            onTend={onTendCrops}
+            onHarvest={onHarvestCrops}
             onMove={() => {
               setMoveStartedFromBuildingPanel(true);
               setIsMoveMode(true);
@@ -1679,6 +1688,7 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
                 `Selecionado: ${currentCfg?.name || selectedBuildingId}. Clique no solo para reposicionar.`
               );
             }}
+            onRotate={() => handleRotateFacility(selectedBuildingId)}
             onDemolish={() => {
               onDemolishBuilding?.(buildingKey);
               setSelectedBuildingId(null);
@@ -1868,17 +1878,6 @@ export const ThreeVillageScene: React.FC<ThreeVillageSceneProps> = ({
         </div>
         );
       })()}
-
-      {/* Controls helper hint in corner */}
-      <div className="absolute bottom-3 right-3 z-10 bg-[#FDFBF7]/85 backdrop-blur-xs border-2 border-[#33261D] px-3 py-1.5 rounded-xl text-[11px] font-medium text-stone-700 shadow-sm pointer-events-none flex items-center gap-2">
-        <span>🖱️ Arraste para mover</span>
-        <span>·</span>
-        <span>📜 Zoom</span>
-        <span>·</span>
-        <span>🎯 Clique nos aldeões</span>
-        <span>·</span>
-        <span>🏗️ Segure para mover</span>
-      </div>
     </div>
   );
 };

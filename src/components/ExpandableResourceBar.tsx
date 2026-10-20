@@ -250,7 +250,7 @@ export const ExpandableResourceBar: React.FC<ExpandableResourceBarProps> = ({
             <div className="p-2.5 rounded-xl border-2 border-[#33261D] bg-[#FFFBF5] flex flex-col justify-between">
               <div className="flex items-center justify-between text-xs font-bold text-stone-700">
                 <span className="flex items-center gap-1">
-                  <Heart size={12} className="text-rose-600" /> Moral Geral
+                  <Heart size={12} className="text-rose-600" /> Bem-Estar da Aldeia
                 </span>
                 <span className="text-[11px] font-bold text-emerald-700">
                   {avgMorale >= 75 ? '+15% bônus' : avgMorale <= 40 ? '-20% rendimento' : 'Normal'}
